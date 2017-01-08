@@ -1,5 +1,13 @@
 #include "tsdemux.h"
 
+uint16_t parse_uint16(uint16_t val) {
+#ifdef __BIG_ENDIAN__
+    return val;
+#else
+    return (val >> 8 & 0x00FF) | (val << 8 & 0xFF00);
+#endif
+}
+
 TSCode parse_packet_header(TSDemuxContext *ctx,
                            const void *data,
                            size_t size,
@@ -12,29 +20,33 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
 
     const uint8_t* ptr = (const uint8_t *)data;
     // check the sync byte
-    if(*ptr != TSD_SYNC_BYTE)  return TSD_INVALID_SYNC_BYTE;
+    hdr->sync_byte = *ptr;
+    if(hdr->sync_byte != TSD_SYNC_BYTE)  return TSD_INVALID_SYNC_BYTE;
     ptr++;
     // parse the flags (3)
-    hdr->flags = (*ptr) & 0x07;
-    // parse the 13 bit PID
-    hdr->pid = ((*( (uint16_t *)ptr)) >> 3) & (uint16_t)(0x1FFF);
+    hdr->flags = (*ptr) >> 5;
+    hdr->pid = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
     ptr+=2;
-    hdr->transport_scrambling_control = (*ptr) & 0x02;
-    hdr->adaptation_field_control = ((*ptr) & 0x0C) >> 2;
-    hdr->continuity_counter = ((*ptr) & 0xF0) >> 4;
+    hdr->transport_scrambling_control = (*ptr) >> 6 & 0x03;
+    hdr->adaptation_field_control = (*ptr) >> 4 & 0x03;
+    hdr->continuity_counter = (*ptr) & 0x0F;
     ptr++;
 
     if(hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_AND_PAYLOAD ||
         hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_ONLY)
     {
-        // TODO: parse adapatation field
-        //ptr += adaptation_len;
+        TSCode res = parse_adaptation_field(ctx, ptr, size-4,
+            &hdr->adaptation_field);
+
+        if(res != TSD_OK) return res;
+
+        ptr += hdr->adaptation_field.adaptation_field_length;
     }
 
     if(hdr->adaptation_field_control == AFC_NO_FIELD_PRESENT ||
         hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_AND_PAYLOAD)
     {
-        hdr->data_bytes = (void *)ptr;
+        hdr->data_bytes = ptr;
     }else{
         hdr->data_bytes = NULL;
     }
@@ -43,7 +55,8 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
 }
 
 TSCode parse_adaptation_field(TSDemuxContext *ctx,
-                              const TSPacket *pkt,
+                              const void *data,
+                              size_t size,
                               AdaptationField *adap)
 {
     return TSD_OK;

@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 void test_start(const char *name) {
   printf("\n------ test start ------\n  RUNNING: %s\n", name);
@@ -22,6 +23,10 @@ void test_assert(int value, const char *msg) {
 }
 
 void test_assert_equal(int val1, int val2, const char *msg) {
+    test_assert(val1 == val2, msg);
+}
+
+void test_assert_equal_ptr(size_t val1, size_t val2, const char *msg) {
     test_assert(val1 == val2, msg);
 }
 

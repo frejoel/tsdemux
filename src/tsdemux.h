@@ -61,9 +61,9 @@ typedef enum TSCode {
 } TSCode;
 
 typedef enum TSPacketFlags {
-    TSPF_TRANSPORT_ERROR_INDICATOR            = 0x01,
+    TSPF_TRANSPORT_ERROR_INDICATOR            = 0x04,
     TSPF_PAYLOAD_UNIT_START_INDICATOR         = 0x02,
-    TSPF_TRANSPORT_PRIORITY                   = 0x03,
+    TSPF_TRANSPORT_PRIORITY                   = 0x01,
 } TSPacketFlags;
 
 /**
@@ -264,7 +264,7 @@ typedef struct TSPacket {
     AdaptionFieldControl adaptation_field_control;
     uint8_t continuity_counter;
     AdaptationField adaptation_field;
-    void *data_bytes;
+    const uint8_t *data_bytes;
 } TSPacket;
 
 /**
@@ -350,7 +350,8 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
                            TSPacket *hdr);
 
 TSCode parse_adaptation_field(TSDemuxContext *ctx,
-                              const TSPacket *data,
+                              const void *data,
+                              size_t size,
                               AdaptationField *adap);
 
 #endif // TS_DEMUX_H

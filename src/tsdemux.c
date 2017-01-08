@@ -1,6 +1,7 @@
 #include "tsdemux.h"
 
-uint16_t parse_uint16(uint16_t val) {
+uint16_t parse_uint16(uint16_t val)
+{
 #ifdef __BIG_ENDIAN__
     return val;
 #else
@@ -33,10 +34,9 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
     ptr++;
 
     if(hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_AND_PAYLOAD ||
-        hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_ONLY)
-    {
+       hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_ONLY) {
         TSCode res = parse_adaptation_field(ctx, ptr, size-4,
-            &hdr->adaptation_field);
+                                            &hdr->adaptation_field);
 
         if(res != TSD_OK) return res;
 
@@ -44,10 +44,9 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
     }
 
     if(hdr->adaptation_field_control == AFC_NO_FIELD_PRESENT ||
-        hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_AND_PAYLOAD)
-    {
+       hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_AND_PAYLOAD) {
         hdr->data_bytes = ptr;
-    }else{
+    } else {
         hdr->data_bytes = NULL;
     }
 

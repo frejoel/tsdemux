@@ -30,6 +30,11 @@ void test_assert_equal(int val1, int val2, const char *msg)
     test_assert(val1 == val2, msg);
 }
 
+void test_assert_equal_uint64(uint64_t val1, uint64_t val2, const char *msg)
+{
+    test_assert(val1 == val2, msg);
+}
+
 void test_assert_equal_ptr(size_t val1, size_t val2, const char *msg)
 {
     test_assert(val1 == val2, msg);

@@ -6,8 +6,9 @@ void test_input(void);
 void test_parsing_sync_byte(void);
 void test_parsing(void);
 void test_parsing_adaptation_field(void);
+void test_parsing_opcr(void);
 
-int main()
+int main(int argc, char **argv)
 {
     test_input();
     test_parsing_sync_byte();
@@ -157,7 +158,7 @@ void test_parsing_opcr(void)
     test_assert_equal(SC_NO_SCRAMBLING, pkt.transport_scrambling_control, "transport scrambling controle");
     test_assert_equal(AFC_ADAPTATION_FIELD_ONLY, pkt.adaptation_field_control, "adaptation field control");
     test_assert_equal(10, pkt.continuity_counter, "continuity counter");
-    test_assert_equal(NULL, pkt.data_bytes, "data bytes");
+    test_assert_equal(0, (size_t)pkt.data_bytes, "data bytes");
 
     AdaptationField *af = &pkt.adaptation_field;
     test_assert_equal(0x25, af->adaptation_field_length, "adaptation field length");
@@ -170,9 +171,9 @@ void test_parsing_opcr(void)
     test_assert_equal(AF_TRANSPORT_PRIVATE_DATA_FLAG, af->flags & AF_TRANSPORT_PRIVATE_DATA_FLAG, "transport private data flag");
     test_assert_equal(AF_ADAPTATION_FIELD_EXTENSION_FLAG, af->flags & AF_ADAPTATION_FIELD_EXTENSION_FLAG, "adaptation field extension flag");
 
-    test_assert_equal(0x13F3D4968L, af->program_clock_reference_base, "program clock reference base");
+    test_assert_equal_uint64(0x13F3D4968L, af->program_clock_reference_base, "program clock reference base");
     test_assert_equal(0xF7, af->program_clock_reference_extension, "program clock reference extension");
-    test_assert_equal(0x10750337EL, af->original_program_clock_reference_base, "original program clock reference base");
+    test_assert_equal_uint64(0x10750337EL, af->original_program_clock_reference_base, "original program clock reference base");
     test_assert_equal(0xF2, af->original_program_clock_reference_extension, "original program clock reference extension");
     test_assert_equal(0x03, af->splice_countdown, "splice countdown");
     test_assert_equal(0x03, af->transport_private_data_length, "transport private data length");
@@ -185,7 +186,7 @@ void test_parsing_opcr(void)
     test_assert_equal(AFEF_SEAMLESS_SPLCE_FLAG, ae->flags & AFEF_SEAMLESS_SPLCE_FLAG, "seamless splice flag");
     test_assert_equal(0x565E, ae->ltw_offset, "ltw offset");
     test_assert_equal(0x200EF0, ae->piecewise_rate, "piecewise rate");
-    test_assert_equal(0xFF606ED2, ae->dts_next_au, "DTS next AU");
+    test_assert_equal_uint64(0xFF606ED2L, ae->dts_next_au, "DTS next AU");
 
     test_end();
 }

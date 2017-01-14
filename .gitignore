@@ -1,2 +1,4 @@
 *.orig
 test/data/99.ts
+bin/*
+*.o

@@ -126,23 +126,23 @@ typedef enum PIDValueAllocation {
  * Adaptation Field Flags.
  */
 typedef enum AdaptationFieldFlags {
-    AF_DISCONTINUITY_INDICATOR                = 0x01,
-    AF_RANDOM_ACCESS_INDICATOR                = 0x02,
-    AF_ELEMENTARY_STREAM_PRIORIY_INDICATOR    = 0x03,
-    AF_PCR_FLAG                               = 0x04,
-    AF_OPCR_FLAG                              = 0x05,
-    AF_SPLICING_POINT_FLAG                    = 0x06,
-    AF_TRANSPORT_PRIVATE_DATA_FLAG            = 0x07,
-    AF_ADAPTATION_FIELD_EXTENSION_FLAG        = 0x08,
+    AF_DISCONTINUITY_INDICATOR                = 0x80,
+    AF_RANDOM_ACCESS_INDICATOR                = 0x40,
+    AF_ELEMENTARY_STREAM_PRIORIY_INDICATOR    = 0x20,
+    AF_PCR_FLAG                               = 0x10,
+    AF_OPCR_FLAG                              = 0x08,
+    AF_SPLICING_POINT_FLAG                    = 0x04,
+    AF_TRANSPORT_PRIVATE_DATA_FLAG            = 0x02,
+    AF_ADAPTATION_FIELD_EXTENSION_FLAG        = 0x01,
 } AdaptationFieldFlags;
 
 /**
  * Adaptation Field Extensions Flags.
  */
 typedef enum AdaptationFieldExtensionFlags {
-    AFEF_LTW_FLAG                             = 0x01,
+    AFEF_LTW_FLAG                             = 0x04,
     AFEF_PIECEWISE_RATE_FLAG                  = 0x02,
-    AFEF_SEAMLESS_SPLCE_FLAG                  = 0x03,
+    AFEF_SEAMLESS_SPLCE_FLAG                  = 0x01,
 } AdaptationFieldExtensionFlags;
 
 /**
@@ -219,18 +219,18 @@ typedef struct TSDemuxContext {
 /**
  * Adaptation Field Extension.
  */
-typedef struct AdapationFieldExtension {
+typedef struct AdaptationFieldExtension {
     uint8_t length;
     int flags;
     // ltw_flag == '1'
     int ltw_valid_flag;
-    uint32_t ltw_valid_offset;
+    uint16_t ltw_offset;
     // piecewise_rate_flag == '1'
     uint32_t piecewise_rate;
     // seamless_splice_flag == '1'
     uint8_t splice_type;
     uint64_t dts_next_au;
-} AdapationFieldExtension;
+} AdaptationFieldExtension;
 
 /**
  * Adaptation Field.
@@ -240,17 +240,17 @@ typedef struct AdaptationField {
     uint8_t flags;
     // PCR == '1'
     uint64_t program_clock_reference_base;
-    int program_clock_reference_extension;
+    uint16_t program_clock_reference_extension;
     // OPCR == '1'
     uint64_t original_program_clock_reference_base;
-    int original_program_clock_reference_extension;
+    uint16_t original_program_clock_reference_extension;
     // splicing_point_fag == '1'
     uint8_t splice_countdown;
     // transport provate data flag == '1'
-    uint8_t transport_private_date_length;
-    void *private_data_byte;
+    uint8_t transport_private_data_length;
+    const void *private_data_byte;
     // adaptation_field_extension_flag == '1'
-    AdapationFieldExtension adaptation_field_extension;
+    AdaptationFieldExtension adaptation_field_extension;
 } AdaptationField;
 
 /**

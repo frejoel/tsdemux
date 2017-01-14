@@ -354,4 +354,9 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
                               size_t size,
                               AdaptationField *adap);
 
+TSCode parse_pes(TSDemuxContext *ctx,
+                 const void *data,
+                 size_t size,
+                 PESPacket *pes);
+
 #endif // TS_DEMUX_H

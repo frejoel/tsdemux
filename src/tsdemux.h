@@ -40,8 +40,24 @@
 
 /**
  * Memory Allocator.
+ * Allocate memory block.
+ * See realloc C90 (C++98) definition.
  */
 typedef void * (*tsd_malloc) (size_t size);
+
+/**
+ * Memory Allocator.
+ * Allocate and zero initialize array.
+ * See calloc C90 (C++98) definition.
+ */
+typedef void * (*tsd_calloc) (size_t num, size_t size);
+
+/**
+ * Memory Allocator.
+ * Changes the size of the memory block pointed at by ptr.
+ * See realloc C90 (C++98) definition.
+ */
+typedef void * (*tsd_realloc) (void *ptr, size_t size);
 
 /**
  * Memory deallocator.
@@ -58,6 +74,8 @@ typedef enum TSCode {
     TSD_INVALID_DATA                          = 0x0003,
     TSD_INVALID_DATA_SIZE                     = 0x0004,
     TSD_INVALID_ARGUMENT                      = 0x0005,
+    TSD_INVALID_START_CODE_PREFIX             = 0x0006,
+    TSD_OUT_OF_MEMORY                         = 0x0007,
 } TSCode;
 
 typedef enum TSPacketFlags {
@@ -212,6 +230,8 @@ typedef enum SystemHeaderFlags {
  */
 typedef struct TSDemuxContext {
     tsd_malloc malloc;
+    tsd_realloc realloc;
+    tsd_calloc calloc;
     tsd_free free;
     char last_error_msg[TSD_MESSAGE_LEN];
 } TSDemuxContext;
@@ -237,7 +257,7 @@ typedef struct AdaptationFieldExtension {
  */
 typedef struct AdaptationField {
     uint8_t adaptation_field_length;
-    uint8_t flags;
+    int flags;
     // PCR == '1'
     uint64_t program_clock_reference_base;
     uint16_t program_clock_reference_extension;
@@ -265,6 +285,7 @@ typedef struct TSPacket {
     uint8_t continuity_counter;
     AdaptationField adaptation_field;
     const uint8_t *data_bytes;
+    size_t data_bytes_length;
 } TSPacket;
 
 /**
@@ -344,6 +365,37 @@ typedef struct PESPacket {
     void *pes_packet_data_byte;
 } PESPacket;
 
+typedef struct PIDMap {
+    uint16_t program_number;
+    uint16_t pid;
+} PIDMap;
+
+typedef struct PATSection {
+    uint8_t table_id;
+    int flags;
+    uint16_t section_length;
+    uint16_t transport_stream_id;
+    uint8_t version_number;
+    uint8_t section_number;
+    uint8_t last_section_number;
+    uint32_t crc_32;
+    PIDMap *pids;
+    size_t pids_length;
+} PATSection;
+
+typedef struct PATable {
+    PATSection **sections;
+    size_t length;
+    size_t capacity;
+} PATable;
+
+typedef struct DataContext {
+    uint8_t *buffer;
+    uint8_t *write;
+    uint8_t *end;
+    size_t size;
+} DataContext;
+
 TSCode parse_packet_header(TSDemuxContext *ctx,
                            const void *data,
                            size_t size,
@@ -353,6 +405,19 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
                               const void *data,
                               size_t size,
                               AdaptationField *adap);
+
+TSCode parse_pat(TSDemuxContext *ctx,
+                 DataContext *dataCtx,
+                 const void *data,
+                 size_t size,
+                 PATable *pat);
+
+TSCode parse_pat_section(TSDemuxContext *ctx,
+                         const void *data,
+                         size_t size,
+                         PATSection *section);
+
+TSCode add_pat_section(TSDemuxContext *ctx, PATable *pat, PATSection *section);
 
 TSCode parse_pes(TSDemuxContext *ctx,
                  const void *data,

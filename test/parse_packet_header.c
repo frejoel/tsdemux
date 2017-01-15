@@ -89,6 +89,8 @@ void test_parsing(void)
     test_assert_equal(AFC_NO_FIELD_PRESENT, pkt.adaptation_field_control, "adaptation field control");
     test_assert_equal(5, pkt.continuity_counter, "continuity counter");
     test_assert_equal_ptr((size_t)(buffer+4), (size_t)pkt.data_bytes, "the data starts at the end of the header");
+printf("%d\n", pkt.data_bytes_length);
+    test_assert_equal(184, pkt.data_bytes_length, "the length of the byte data");
 
     test_end();
 }
@@ -130,6 +132,7 @@ void test_parsing_adaptation_field(void) {
     test_assert_equal(0L, af->program_clock_reference_extension, "Program Clock Reference Extension");
 
     test_assert_equal_ptr((size_t)(ptr+11), (size_t)pkt.data_bytes, "the data starts at the end of the adaptation field");
+    test_assert_equal(177, pkt.data_bytes_length, "the length of the byte data");
 
     test_end();
 }
@@ -159,6 +162,7 @@ void test_parsing_opcr(void)
     test_assert_equal(AFC_ADAPTATION_FIELD_ONLY, pkt.adaptation_field_control, "adaptation field control");
     test_assert_equal(10, pkt.continuity_counter, "continuity counter");
     test_assert_equal(0, (size_t)pkt.data_bytes, "data bytes");
+    test_assert_equal(0, pkt.data_bytes_length, "the length of the byte data");
 
     AdaptationField *af = &pkt.adaptation_field;
     test_assert_equal(0x25, af->adaptation_field_length, "adaptation field length");

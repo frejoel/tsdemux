@@ -48,7 +48,11 @@ TSCode set_default_context(TSDemuxContext *ctx)
     ctx->calloc = calloc;
     ctx->free = free;
 
-    return TSD_OK;
+    ctx->on_table_cb = NULL;
+
+    TSCode res = data_context_init(ctx, &ctx->pat.data);
+
+    return res;
 }
 
 TSCode parse_packet_header(TSDemuxContext *ctx,
@@ -205,112 +209,80 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
 
 TSCode parse_table(TSDemuxContext *ctx,
                    DataContext *dataCtx,
-                   const void *data,
-                   size_t size,
-                   Table *pat)
+                   TSPacket *pkt,
+                   Table *table)
 {
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
     if(dataCtx == NULL)             return TSD_INVALID_ARGUMENT;
-    if(data == NULL)                return TSD_INVALID_DATA;
-    if(size < TSD_TSPACKET_SIZE)    return TSD_INVALID_DATA_SIZE;
-    if(pat == NULL)                 return TSD_INVALID_ARGUMENT;
+    if(pkt == NULL)                 return TSD_INVALID_ARGUMENT;
+    if(table == NULL)               return TSD_INVALID_ARGUMENT;
 
-    const void *ptr = data;
-    size_t remaining = size;
     TSCode res;
-    TSPacket pkt;
 
-    // start parsing packets to find the tables
-    while(remaining >= TSD_TSPACKET_SIZE) {
+    // if we find a PAT PID write the data into the buffer
+    if(pkt->pid != PID_PAT) {
+        return TSD_NOT_A_TABLE_PACKET;
+    }
 
-        res = parse_packet_header(ctx, ptr, remaining, &pkt);
-        if(res != TSD_OK) return res;
-        remaining -= TSD_TSPACKET_SIZE;
+    // payload data error handling
+    if(pkt->data_bytes == NULL || pkt->data_bytes_length == 0) {
+        return TSD_INCOMPLETE_TABLE;
+    }
 
-        // skip packets with errors
-        if(pkt.flags & TSPF_TRANSPORT_ERROR_INDICATOR) {
-            continue;
-        }
+    // If we've not written any data into the DataContext yet, make sure
+    // we start with a packet that includes the start of a new section.
+    // This section might not be the first one, but we'll worry about that
+    // later.
+    if((dataCtx->write == dataCtx->buffer) &&
+       !(pkt->flags & TSPF_PAYLOAD_UNIT_START_INDICATOR)) {
+        return TSD_INCOMPLETE_TABLE;
+    }
 
-        if(pkt.pid != 0x100 && pkt.pid != 0x101)
-            printf("%x\n", pkt.pid);
-        // if we find a PAT PID write the data into our buffer
-        if(pkt.pid == PID_PAT) {
-            // payload data error handling
-            if(pkt.data_bytes == NULL || pkt.data_bytes_length == 0) {
-                continue;
-            }
+    // write the data into our buffer
+    res = data_context_write(ctx,
+                             dataCtx,
+                             pkt->data_bytes,
+                             pkt->data_bytes_length);
 
-            // If we've not written any data yet, make sure we start with a
-            // packet that includes the start of a new section.
-            // This section might not be the first one however, but we'll
-            // worry about that later.
-            if((dataCtx->write == dataCtx->buffer) &&
-               !(pkt.flags & TSPF_PAYLOAD_UNIT_START_INDICATOR)) {
-                continue;
-            }
+    if(res != TSD_OK) {
+        return res;
+    }
 
-            // if we don't have enough space we'll need to reallocate the  data.
-            size_t space = (size_t)(dataCtx->end - dataCtx->write);
-            if(space < pkt.data_bytes_length) {
-                // reallocate enough memory aligning it to 256 bytes
-                size_t new_size = dataCtx->size +
-                                  (((pkt.data_bytes_length / 256) + 1) * 256);
+    // do we have enough data to parse the next section?
+    size_t data_len = dataCtx->write - dataCtx->buffer;
+    if(data_len < 8) {
+        return TSD_INCOMPLETE_TABLE;
+    }
 
-                void *mem = ctx->realloc(dataCtx->buffer, new_size);
-                if(!mem) {
-                    return TSD_OUT_OF_MEMORY;
-                }
+    // get the length of this section
+    uint16_t section_len = parse_uint16( *((uint16_t*)(dataCtx->buffer+1)));
+    section_len &= 0x0FFF;
 
-                dataCtx->buffer = (uint8_t*)mem;
-                dataCtx->end = &dataCtx->buffer[new_size];
-                dataCtx->write = &dataCtx->buffer[dataCtx->size];
-                dataCtx->size = new_size;
-            }
+    if(data_len < section_len + 3) {
+        return TSD_INCOMPLETE_TABLE;
+    }
 
-            // write the data into our buffer
-            memcpy(dataCtx->write, pkt.data_bytes, pkt.data_bytes_length);
-            dataCtx->write += pkt.data_bytes_length;
-            printf("data: %2x %2x %2x %2x %2x %2x %2x %2x %2x %2x %2x %2x\n", pkt.data_bytes[0],
-                   pkt.data_bytes[1], pkt.data_bytes[2], pkt.data_bytes[3], pkt.data_bytes[4],
-                   pkt.data_bytes[5], pkt.data_bytes[6], pkt.data_bytes[7], pkt.data_bytes[8],
-                   pkt.data_bytes[9], pkt.data_bytes[10], pkt.data_bytes[11]);
+    // we have enough data to parse this section, make sure it's a PAT table,
+    // (we don't care about short vs long table format at this point)
+    if(dataCtx->buffer[0] != 0x00) {
+        return TSD_INCOMPLETE_TABLE;
+    }
+    // parse the PAT section
+    TableSection *section = (TableSection*) ctx->malloc(
+                                sizeof(TableSection));
 
-            // do we have enough data to parse the next section?
-            size_t data_len = dataCtx->write - dataCtx->buffer;
-            if(data_len >= 8) {
-                // get the length of this section
-                uint16_t section_len = parse_uint16(
-                                           *((uint16_t*)(dataCtx->buffer+1)));
+    res = parse_table_section(ctx, dataCtx->buffer,
+                              data_len,
+                              section);
 
-                section_len &= 0x0FFF;
-                if(data_len >= section_len + 3) {
-                    // we have enough data to parse this section. and make sure
-                    //  it's a PAT table, (we don't care about short vs long
-                    // table format)
-                    printf("%2x %2x\n", dataCtx->buffer[0], dataCtx->buffer[1]);
-                    if((dataCtx->buffer[0] == 0x00)) {
-                        // parse the PAT section
-                        TableSection *section = (TableSection*) ctx->malloc(
-                                                    sizeof(TableSection));
+    if(res != TSD_OK) {
+        return res;
+    }
 
-                        TSCode res;
-                        res = parse_table_section(ctx, dataCtx->buffer,
-                                                  data_len,
-                                                  section);
-
-                        if(res != TSD_OK) return res;
-
-                        // add the section to our Table
-                        res = add_pat_section(ctx, pat, section);
-                        if(res != TSD_OK) return res;
-                    }
-
-                    // reset the write buffer
-                    dataCtx->write = dataCtx->buffer;
-                }
-            }
-        }
+    // add the section to our Table
+    res = add_table_section(ctx, table, section);
+    if(res != TSD_OK) {
+        return res;
     }
 
     return TSD_OK;
@@ -383,35 +355,35 @@ TSCode parse_table_section(TSDemuxContext *ctx,
 }
 
 
-TSCode add_pat_section(TSDemuxContext *ctx, Table *pat, TableSection *section)
+TSCode add_table_section(TSDemuxContext *ctx, Table *table, TableSection *section)
 {
     // allocate some space for the sections if we haven't already
-    if(pat->sections == NULL) {
-        pat->sections = (TableSection**) ctx->malloc(sizeof(size_t) * 16);
+    if(table->sections == NULL) {
+        table->sections = (TableSection**) ctx->malloc(sizeof(size_t) * 16);
 
-        if(pat->sections == NULL) {
+        if(table->sections == NULL) {
             return TSD_OUT_OF_MEMORY;
         }
 
-        pat->length = 0;
-        pat->capacity = 16;
+        table->length = 0;
+        table->capacity = 16;
     }
 
-    if(pat->length >= pat->capacity) {
-        size_t new_capacity = pat->capacity + 16;
-        TableSection **new_secs = (TableSection**) ctx->realloc((void*) pat->sections,
+    if(table->length >= table->capacity) {
+        size_t new_capacity = table->capacity + 16;
+        TableSection **new_secs = (TableSection**) ctx->realloc((void*) table->sections,
                                   (sizeof(size_t) * new_capacity));
 
         if(new_secs == NULL) {
             return TSD_OUT_OF_MEMORY;
         }
 
-        pat->sections = new_secs;
-        pat->capacity = new_capacity;
+        table->sections = new_secs;
+        table->capacity = new_capacity;
     }
 
-    pat->sections[pat->length] = section;
-    pat->length++;
+    table->sections[table->length] = section;
+    table->length++;
 
     return TSD_OK;
 }
@@ -464,7 +436,7 @@ TSCode data_context_destroy(TSDemuxContext *ctx, DataContext *dataCtx)
     return TSD_OK;
 }
 
-TSCode data_context_write(TSDemuxContext *ctx, DataContext *dataCtx, uint8_t *data, size_t size)
+TSCode data_context_write(TSDemuxContext *ctx, DataContext *dataCtx, const uint8_t *data, size_t size)
 {
     if(ctx == NULL)         return TSD_INVALID_CONTEXT;
     if(dataCtx == NULL)     return TSD_INVALID_ARGUMENT;
@@ -503,4 +475,51 @@ TSCode data_context_reset(TSDemuxContext *ctx, DataContext *dataCtx)
 
     dataCtx->write = dataCtx->buffer;
     return TSD_OK;
+}
+
+size_t demux(TSDemuxContext *ctx,
+             void *data,
+             size_t size,
+             TSCode *code)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size == 0)           return TSD_INVALID_DATA_SIZE;
+
+    uint8_t *ptr = (uint8_t*)data;
+    size_t remaining = size;
+
+    // initially set the code to OK
+    *code = TSD_OK;
+
+    TSPacket hdr;
+    TSCode res;
+
+    while(remaining >= TSD_TSPACKET_SIZE) {
+        res = parse_packet_header(ctx, ptr, size, &hdr);
+        if(res != TSD_OK) {
+            // set the code to the error
+            *code = res;
+            break;
+        }
+
+        remaining -= TSD_TSPACKET_SIZE;
+
+        // skip packets with errors and null packets
+        if((hdr.flags & TSPF_TRANSPORT_ERROR_INDICATOR) ||
+           (hdr.pid == PID_NULL_PACKETS)) {
+            continue;
+        }
+
+        if(hdr.pid == PID_PAT) {
+            // parse the PAT
+            res = parse_table(ctx, &ctx->pat.data, &hdr, &ctx->pat.table);
+        } else if (hdr.pid == PID_CAT || hdr.pid == PID_TSDT ||
+                   (hdr.pid > PID_RESERVED_FUTURE && hdr.pid <= PID_ATSC_PSIP_SI)) {
+            // TODO:
+        }
+    }
+
+    data_context_destroy(ctx, &ctx->pat.data);
+
+    return size - remaining;
 }

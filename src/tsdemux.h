@@ -39,6 +39,11 @@
  * Libts external API header
  */
 
+// forward declarations
+typedef struct TSDemuxContext TSDemuxContext;
+typedef struct Table Table;
+
+
 /**
  * Memory Allocator.
  * Allocate memory block.
@@ -66,6 +71,11 @@ typedef void * (*tsd_realloc) (void *ptr, size_t size);
 typedef void (*tsd_free) (void *mem);
 
 /**
+ * Table Callback.
+ */
+typedef void (*tsd_on_table) (TSDemuxContext *ctx, Table *table);
+
+/**
  * Return codes.
  */
 typedef enum TSCode {
@@ -77,8 +87,13 @@ typedef enum TSCode {
     TSD_INVALID_ARGUMENT                      = 0x0005,
     TSD_INVALID_START_CODE_PREFIX             = 0x0006,
     TSD_OUT_OF_MEMORY                         = 0x0007,
+    TSD_INCOMPLETE_TABLE                      = 0x0008,
+    TSD_NOT_A_TABLE_PACKET                    = 0x0009,
 } TSCode;
 
+/**
+ * Transport Stream Packet Flags.
+ */
 typedef enum TSPacketFlags {
     TSPF_TRANSPORT_ERROR_INDICATOR            = 0x04,
     TSPF_PAYLOAD_UNIT_START_INDICATOR         = 0x02,
@@ -235,16 +250,16 @@ typedef enum TableFlags {
 } TableFlags;
 
 /**
- * TS Demux Context.
- * The TSDEmuxContext is used to separate multiple demux tasks.
+ * Data Context.
+ * Used to persist the session when streaming TS packets through the demux in
+ * multiple calls.
  */
-typedef struct TSDemuxContext {
-    tsd_malloc malloc;
-    tsd_realloc realloc;
-    tsd_calloc calloc;
-    tsd_free free;
-    char last_error_msg[TSD_MESSAGE_LEN];
-} TSDemuxContext;
+typedef struct DataContext {
+    uint8_t *buffer;
+    uint8_t *write;
+    uint8_t *end;
+    size_t size;
+} DataContext;
 
 /**
  * Adaptation Field Extension.
@@ -409,16 +424,22 @@ typedef struct Table {
 } Table;
 
 /**
- * Data Context.
- * Used to persist the session when streaming TS packets through the demux in
- * multiple calls.
+ * TS Demux Context.
+ * The TSDEmuxContext is used to separate multiple demux tasks.
  */
-typedef struct DataContext {
-    uint8_t *buffer;
-    uint8_t *write;
-    uint8_t *end;
-    size_t size;
-} DataContext;
+typedef struct TSDemuxContext {
+    tsd_malloc malloc;
+    tsd_realloc realloc;
+    tsd_calloc calloc;
+    tsd_free free;
+
+    tsd_on_table on_table_cb;
+
+    struct {
+        DataContext data;
+        Table table;
+    } pat;
+} TSDemuxContext;
 
 /**
  * Set Default Context.
@@ -428,6 +449,11 @@ typedef struct DataContext {
  * @return TSD_OK on success.
  */
 TSCode set_default_context(TSDemuxContext *ctx);
+
+/**
+ * Demux a Transport Stream.
+ */
+size_t demux(TSDemuxContext *ctx, void *data, size_t size, TSCode *code);
 
 /**
  * Parse Packet Header.
@@ -458,16 +484,17 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
 
 TSCode parse_table(TSDemuxContext *ctx,
                    DataContext *dataCtx,
-                   const void *data,
-                   size_t size,
-                   Table *pat);
+                   TSPacket *pkt,
+                   Table *table);
 
 TSCode parse_table_section(TSDemuxContext *ctx,
                            const void *data,
                            size_t size,
                            TableSection *section);
 
-TSCode add_pat_section(TSDemuxContext *ctx, Table *pat, TableSection *section);
+TSCode add_table_section(TSDemuxContext *ctx,
+                         Table *table,
+                         TableSection *section);
 
 TSCode parse_pes(TSDemuxContext *ctx,
                  const void *data,
@@ -511,7 +538,7 @@ TSCode data_context_destroy(TSDemuxContext *ctx, DataContext *dataCtx);
  * @param size The number of bytes to write.
  * @returns TSD_OK on success.
  */
-TSCode data_context_write(TSDemuxContext *ctx, DataContext *dataCtx, uint8_t *data, size_t size);
+TSCode data_context_write(TSDemuxContext *ctx, DataContext *dataCtx, const uint8_t *data, size_t size);
 
 /**
  * Reset Data Context.

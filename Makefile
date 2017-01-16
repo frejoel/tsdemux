@@ -2,7 +2,7 @@ CC=gcc
 ODIR=bin
 CFLAGS=-Ibin -Lbin -ltsdemux_d -g
 
-TEST_FILES=test/parse_packet_header.o test/parse_pat.o
+TEST_FILES=test/parse_packet_header.o test/data_context.o test/parse_table.o
 
 tsdemux:
 	astyle --style=linux -n src/*.h src/*.c
@@ -17,7 +17,8 @@ tsdemux:
 
 check: tsdemux $(TEST_FILES)
 	./test/parse_packet_header.o
-	./test/parse_pat.o
+	./test/data_context.o
+	./test/parse_table.o
 
 .PHONY: clean
 

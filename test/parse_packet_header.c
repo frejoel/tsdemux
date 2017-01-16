@@ -89,7 +89,6 @@ void test_parsing(void)
     test_assert_equal(AFC_NO_FIELD_PRESENT, pkt.adaptation_field_control, "adaptation field control");
     test_assert_equal(5, pkt.continuity_counter, "continuity counter");
     test_assert_equal_ptr((size_t)(buffer+4), (size_t)pkt.data_bytes, "the data starts at the end of the header");
-printf("%d\n", pkt.data_bytes_length);
     test_assert_equal(184, pkt.data_bytes_length, "the length of the byte data");
 
     test_end();

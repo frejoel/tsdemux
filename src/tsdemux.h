@@ -31,6 +31,7 @@
 #define TSD_SYNC_BYTE                         (0x47)
 #define TSD_MESSAGE_LEN                       (128)
 #define TSD_TSPACKET_SIZE                     (188)
+#define TSD_DEFAULT_DATA_CONTEXT_SIZE         (256)
 
 /**
  * @file
@@ -219,10 +220,19 @@ typedef enum PESExtensionFlags {
 typedef enum SystemHeaderFlags {
     SHF_FIXED_FLAG                            = 0x01,
     SHF_CSPS_FLAG                             = 0x02,
-    SHF_SYSTEM_AUDIO_LOCK_FLAG                = 0x03,
-    SHF_SYSTEM_VIDEO_LOCK_FLAG                = 0x04,
+    SHF_SYSTEM_AUDIO_LOCK_FLAG                = 0x04,
+    SHF_SYSTEM_VIDEO_LOCK_FLAG                = 0x08,
     SHF_PACKET_RATE_RESTICTION_FLAG           = 0x10,
 } SystemHeaderFlags;
+
+/**
+ * Table Flags.
+ */
+typedef enum TableFlags {
+    TBL_PRIVATE_INDICATOR                     = 0x01,
+    TBL_SECTION_SYNTAX_INDICATOR              = 0x02,
+    TBL_CURRENT_NEXT_INDICATOR                = 0x04,
+} TableFlags;
 
 /**
  * TS Demux Context.
@@ -315,7 +325,7 @@ typedef struct SystemHeader {
 } SystemHeader;
 
 /**
- * Program Stream Pack Header
+ * Program Stream Pack Header.
  */
 typedef struct PackHeader {
     uint32_t pack_start_code;
@@ -326,6 +336,9 @@ typedef struct PackHeader {
     SystemHeader system_header;
 } PackHeader;
 
+/**
+ * PES Extension.
+ */
 typedef struct PESExtension {
     int flags;
     // pes_private_data_flag == '1'
@@ -370,7 +383,11 @@ typedef struct PIDMap {
     uint16_t pid;
 } PIDMap;
 
-typedef struct PATSection {
+/**
+ * Table Section.
+ * Represents any short or long form table section, both PSI and private.
+ */
+typedef struct TableSection {
     uint8_t table_id;
     int flags;
     uint16_t section_length;
@@ -379,16 +396,23 @@ typedef struct PATSection {
     uint8_t section_number;
     uint8_t last_section_number;
     uint32_t crc_32;
-    PIDMap *pids;
-    size_t pids_length;
-} PATSection;
+} TableSection;
 
-typedef struct PATable {
-    PATSection **sections;
+/**
+ * Table structure.
+ * Represents a complete Table which is made up of Table Sections.
+ */
+typedef struct Table {
+    TableSection **sections;
     size_t length;
     size_t capacity;
-} PATable;
+} Table;
 
+/**
+ * Data Context.
+ * Used to persist the session when streaming TS packets through the demux in
+ * multiple calls.
+ */
 typedef struct DataContext {
     uint8_t *buffer;
     uint8_t *write;
@@ -396,32 +420,108 @@ typedef struct DataContext {
     size_t size;
 } DataContext;
 
+/**
+ * Set Default Context.
+ * Sets default options onto the TSDemuxContext for convience.
+ * TSDemuxContext must be a valid pointer to a TSDemuxContext object.
+ * @param ctx The TSDemuxContext to set default parameters onto.
+ * @return TSD_OK on success.
+ */
+TSCode set_default_context(TSDemuxContext *ctx);
+
+/**
+ * Parse Packet Header.
+ * Parses a TS Packet from the supplied data.
+ * The parsed output is put into the hdr parameter supplied.
+ * The hdr pointer must be a pointer to a valid TSPacket object.
+ * @param ctx The TSDemuxContext.
+ * @param data The TS data to parse.
+ * @param size The number of bytes to parse.
+ * @param hdr The ouput of the parsing will do into the object referenced by
+ *            this pointer.
+ * @return TSD_OK on success. See the TSCode enum for error codes.
+ */
 TSCode parse_packet_header(TSDemuxContext *ctx,
                            const void *data,
                            size_t size,
                            TSPacket *hdr);
 
+/**
+ * Parse TS Packet Adaption Field.
+ * Parses the Adaption Field found inside a TSPacket.
+ * This function is called internally when parsing TS Packets.
+ */
 TSCode parse_adaptation_field(TSDemuxContext *ctx,
                               const void *data,
                               size_t size,
                               AdaptationField *adap);
 
-TSCode parse_pat(TSDemuxContext *ctx,
-                 DataContext *dataCtx,
-                 const void *data,
-                 size_t size,
-                 PATable *pat);
+TSCode parse_table(TSDemuxContext *ctx,
+                   DataContext *dataCtx,
+                   const void *data,
+                   size_t size,
+                   Table *pat);
 
-TSCode parse_pat_section(TSDemuxContext *ctx,
-                         const void *data,
-                         size_t size,
-                         PATSection *section);
+TSCode parse_table_section(TSDemuxContext *ctx,
+                           const void *data,
+                           size_t size,
+                           TableSection *section);
 
-TSCode add_pat_section(TSDemuxContext *ctx, PATable *pat, PATSection *section);
+TSCode add_pat_section(TSDemuxContext *ctx, Table *pat, TableSection *section);
 
 TSCode parse_pes(TSDemuxContext *ctx,
                  const void *data,
                  size_t size,
                  PESPacket *pes);
+
+/**
+ * Data Content Initializtion.
+ * Initializes a Data Context. Do not call multiple times on the same Context
+ * unless the context has been destroyed.
+ * A DataContext must be initialized before being used anywhere in the API.
+ * @param ctx The TSDemuxContext.
+ * @param dataCtx The DataContext to initialize.
+ * @return TSD_OK on succes.
+ */
+TSCode data_context_init(TSDemuxContext *ctx, DataContext *dataCtx);
+
+/**
+ * Destroys a DataContext.
+ * Destroys a DataContext that has been previously initialized.
+ * Calling data_context_destroy multiple times after initializing a DataContext
+ * will not cause any problems.
+ * Do not call data_context_destroy on an unitialized DataContext, unexecpted
+ * behavior will occur.
+ * It is possible to reinitialize a DataContext once it has been destroyed.
+ * @param ctx The TSDemuxContext.
+ * @param dataCtx The DataContext to destroy.
+ * @return TSD_OK on success and if the DataContext has already been destroyed.
+ */
+TSCode data_context_destroy(TSDemuxContext *ctx, DataContext *dataCtx);
+
+/**
+ * Writes data to DataContext.
+ * The DataContext will dynamically allocate more memory if there is not enough
+ * space in the DataContext buffer.
+ * Supplying NULL data or a size of zero will cause data_context_write to return
+ * an error.
+ * @param ctx The TSDemuxContext.
+ * @param dataCtx The DataContext to write the data to.
+ * @param data The data to write.
+ * @param size The number of bytes to write.
+ * @returns TSD_OK on success.
+ */
+TSCode data_context_write(TSDemuxContext *ctx, DataContext *dataCtx, uint8_t *data, size_t size);
+
+/**
+ * Reset Data Context.
+ * Resets the write buffer effecively clearing the buffer and starting over.
+ * Re-uses the existing buffer even if it has previously been dynamically
+ * allocated during a write process.
+ * @param ctx The TSDemuxContext.
+ * @param dataCtx The DataContext to reset.
+ * @return TSD_OK on success.
+ */
+TSCode data_context_reset(TSDemuxContext *ctx, DataContext *dataCtx);
 
 #endif // TS_DEMUX_H

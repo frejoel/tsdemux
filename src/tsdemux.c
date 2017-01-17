@@ -457,8 +457,7 @@ size_t demux(TSDemuxContext *ctx,
 
         // skip packets with errors and null packets
         if((hdr.flags & TSPF_TRANSPORT_ERROR_INDICATOR) ||
-           (hdr.pid == PID_NULL_PACKETS))
-        {
+           (hdr.pid == PID_NULL_PACKETS)) {
             continue;
         }
 

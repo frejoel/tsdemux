@@ -22,7 +22,7 @@ void test_demux(void)
     TSDemuxContext ctx;
     set_default_context(&ctx);
 
-    FILE *fp = fopen("test/data/02_f.ts", "rb");
+    FILE *fp = fopen("test/data/02.ts", "rb");
     char buffer[1880];
 
     TSPacket hdr;

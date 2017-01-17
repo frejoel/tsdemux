@@ -219,172 +219,118 @@ TSCode parse_table(TSDemuxContext *ctx,
 
     TSCode res;
 
-    // if we find a PAT PID write the data into the buffer
-    if(pkt->pid != PID_PAT) {
-        return TSD_NOT_A_TABLE_PACKET;
-    }
-
     // payload data error handling
     if(pkt->data_bytes == NULL || pkt->data_bytes_length == 0) {
         return TSD_INCOMPLETE_TABLE;
     }
 
-    // If we've not written any data into the DataContext yet, make sure
-    // we start with a packet that includes the start of a new section.
-    // This section might not be the first one, but we'll worry about that
-    // later.
-    if((dataCtx->write == dataCtx->buffer) &&
-       !(pkt->flags & TSPF_PAYLOAD_UNIT_START_INDICATOR)) {
-        return TSD_INCOMPLETE_TABLE;
+    size_t pointer_field = 0;
+
+    if(pkt->flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
+        // there is a new table section somewhere in this packet.
+        // if we haven't starting writing any table sections yet we'll need to
+        // jump to this location
+        if(dataCtx->buffer == dataCtx->write) {
+            pointer_field = ((size_t)pkt->data_bytes[0]) + 1;
+        } else {
+            pointer_field = 1;
+        }
+    } else {
+        // if we already don't have any data in our buffer this must be old
+        // table data
+        if(dataCtx->write == dataCtx->buffer) {
+            return TSD_INCOMPLETE_TABLE;
+        }
     }
+
+    const uint8_t *write_pos = pkt->data_bytes + pointer_field;
+    size_t write_size = pkt->data_bytes_length - pointer_field;
 
     // write the data into our buffer
-    res = data_context_write(ctx,
-                             dataCtx,
-                             pkt->data_bytes,
-                             pkt->data_bytes_length);
-
+    res = data_context_write(ctx, dataCtx, write_pos, write_size);
     if(res != TSD_OK) {
         return res;
     }
 
-    // do we have enough data to parse the next section?
-    size_t data_len = dataCtx->write - dataCtx->buffer;
-    if(data_len < 8) {
-        return TSD_INCOMPLETE_TABLE;
+    // has the table completed yet? We'll need enough data to see the section
+    // length to figure that one.
+    uint8_t *ptr = dataCtx->buffer;
+    int section_count = 0;
+
+    while(ptr < dataCtx->write) {
+        uint16_t section_len = parse_uint16(*((uint16_t*)(ptr+1)));
+        section_len &= 0x0FFF;
+        ptr += section_len + 2;
+        section_count++;
+
+        if((ptr+1) < dataCtx->write && *(ptr+1) == 0xFF) {
+            // we found the end of the table, create and parse the sections
+            table->length = section_count;
+            table->sections = (TableSection*) ctx->calloc(section_count,
+                              sizeof(TableSection));
+
+            res = parse_table_sections(ctx,
+                                       dataCtx->buffer,
+                                       dataCtx->size,
+                                       table);
+
+            return res;
+        }
     }
 
-    // get the length of this section
-    uint16_t section_len = parse_uint16( *((uint16_t*)(dataCtx->buffer+1)));
-    section_len &= 0x0FFF;
-
-    if(data_len < section_len + 3) {
-        return TSD_INCOMPLETE_TABLE;
-    }
-
-    // we have enough data to parse this section, make sure it's a PAT table,
-    // (we don't care about short vs long table format at this point)
-    if(dataCtx->buffer[0] != 0x00) {
-        return TSD_INCOMPLETE_TABLE;
-    }
-    // parse the PAT section
-    TableSection *section = (TableSection*) ctx->malloc(
-                                sizeof(TableSection));
-
-    res = parse_table_section(ctx, dataCtx->buffer,
-                              data_len,
-                              section);
-
-    if(res != TSD_OK) {
-        return res;
-    }
-
-    // add the section to our Table
-    res = add_table_section(ctx, table, section);
-    if(res != TSD_OK) {
-        return res;
-    }
-
-    return TSD_OK;
+    return TSD_INCOMPLETE_TABLE;
 }
 
-TSCode parse_table_section(TSDemuxContext *ctx,
-                           const void *data,
-                           size_t size,
-                           TableSection *section)
+TSCode parse_table_sections(TSDemuxContext *ctx,
+                            uint8_t *data,
+                            size_t size,
+                            Table *table)
 {
     if(ctx == NULL)             return TSD_INVALID_CONTEXT;
     if(data == NULL)            return TSD_INVALID_DATA;
-    if(size < 96)               return TSD_INVALID_DATA_SIZE;
-    if(section == NULL)         return TSD_INVALID_ARGUMENT;
+    if(size == 0)               return TSD_INVALID_DATA_SIZE;
+    if(table == NULL)            return TSD_INVALID_ARGUMENT;
 
-    const uint8_t *ptr = (uint8_t*)data;
+    uint8_t *ptr = data;
+    size_t i;
 
-    section->table_id = *ptr;
-    ptr++;
-    // section syntax indicator and private indicator
-    section->flags = ((*ptr) >> 6) & 0x03;
-    section->section_length = parse_uint16(*((uint16_t*)(ptr))) & 0x0FFF;
-    ptr+=2;
-
-    // are we dealing with a long form or short form table?
-    size_t crc_byte_count = 4;
-    if(section->flags & TBL_SECTION_SYNTAX_INDICATOR) {
-        // long form table properties
-        section->transport_stream_id = parse_uint16(*((uint16_t*)(ptr)));
+    for(i=0; i < table->length; ++i) {
+        TableSection *section = &(table->sections[i]);
+        section->table_id = *ptr;
+        ptr++;
+        // section syntax indicator and private indicator
+        section->flags = (int)(((*ptr) >> 6) & 0x03);
+        section->section_length = parse_uint16(*((uint16_t*)ptr)) & 0x0FFF;
         ptr+=2;
-        section->version_number = ((*ptr) >> 1) & 0x1F;
-        section->flags |= ((*ptr) & 0x01) << 2; // current next indicator
-        ptr++;
-        section->section_number = *ptr;
-        ptr++;
-        section->last_section_number = *ptr;
-    } else {
-        // set everything to zero for short form
-        section->transport_stream_id = 0;
-        section->version_number = 0;
-        section->section_number = 0;
-        section->last_section_number = 0;
-        section->crc_32 = 0; // may or may not be populated later
-        crc_byte_count = 0;
+        // are we dealing with a long form or short form table?
+        if(section->flags & TBL_SECTION_SYNTAX_INDICATOR) {
+            // long form table properties
+            section->transport_stream_id = parse_uint16(*((uint16_t*)(ptr)));
+            section->version_number = ((*(ptr+2)) >> 1) & 0x1F;
+            section->flags |= ((*(ptr+2)) & 0x01) << 2; // current next indicator
+            section->section_number = *(ptr+3);
+            section->last_section_number = *(ptr+4);
+            section->section_data = ptr+5;
+            uint32_t *ptr32 = (uint32_t*)(ptr + (section->section_length - 4));
+            section->crc_32 = parse_uint32(*ptr32);
+        } else {
+            // set everything to zero for short form
+            section->transport_stream_id = 0;
+            section->version_number = 0;
+            section->section_number = 0;
+            section->last_section_number = 0;
+            section->crc_32 = 0;
+        }
+
+        ptr += section->section_length;
     }
-
-    printf("section number: %d, last_section_length: %d\n", section->section_number, section->last_section_number);
-
-    // PIDs in this section.
-    // find the end of the PID sections
-    uint8_t *pid_end = ((uint8_t*)data) + (size - crc_byte_count);
-    // figure out how many PIDs are in this section (there's 4 bytes per pid)
-    size_t pid_count = (pid_end - ptr) / 4;
-    // allocate enough memory for all those PIDs
-    //section->pids = (PIDMap*) ctx->calloc(pid_count, sizeof(PIDMap));
-
-    // parse all the PIDs
-    size_t i = 0;
-    for(; i < pid_count; ++i) {
-        //section->pids[i].program_number = parse_uint16(*((uint16_t*)ptr));
-        //ptr+=2;
-        //section->pids[i].pid = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
-        //ptr+=2;
-        //printf("i: %d, pid: %x, prog number: %x\n", i, section->pids[i].pid, section->pids[i].program_number);
-    }
-
-    section->crc_32 = parse_uint32(*((uint32_t*)ptr));
 
     return TSD_OK;
 }
 
-
-TSCode add_table_section(TSDemuxContext *ctx, Table *table, TableSection *section)
+TSCode parse_table_pat(TSDemuxContext *ctx,
+                       TableSection *section)
 {
-    // allocate some space for the sections if we haven't already
-    if(table->sections == NULL) {
-        table->sections = (TableSection**) ctx->malloc(sizeof(size_t) * 16);
-
-        if(table->sections == NULL) {
-            return TSD_OUT_OF_MEMORY;
-        }
-
-        table->length = 0;
-        table->capacity = 16;
-    }
-
-    if(table->length >= table->capacity) {
-        size_t new_capacity = table->capacity + 16;
-        TableSection **new_secs = (TableSection**) ctx->realloc((void*) table->sections,
-                                  (sizeof(size_t) * new_capacity));
-
-        if(new_secs == NULL) {
-            return TSD_OUT_OF_MEMORY;
-        }
-
-        table->sections = new_secs;
-        table->capacity = new_capacity;
-    }
-
-    table->sections[table->length] = section;
-    table->length++;
-
     return TSD_OK;
 }
 
@@ -482,6 +428,7 @@ size_t demux(TSDemuxContext *ctx,
              size_t size,
              TSCode *code)
 {
+    if(ctx == NULL)         return TSD_INVALID_CONTEXT;
     if(data == NULL)        return TSD_INVALID_DATA;
     if(size == 0)           return TSD_INVALID_DATA_SIZE;
 
@@ -489,7 +436,9 @@ size_t demux(TSDemuxContext *ctx,
     size_t remaining = size;
 
     // initially set the code to OK
-    *code = TSD_OK;
+    if(code != NULL) {
+        *code = TSD_OK;
+    }
 
     TSPacket hdr;
     TSCode res;
@@ -498,7 +447,9 @@ size_t demux(TSDemuxContext *ctx,
         res = parse_packet_header(ctx, ptr, size, &hdr);
         if(res != TSD_OK) {
             // set the code to the error
-            *code = res;
+            if(code != NULL) {
+                *code = res;
+            }
             break;
         }
 
@@ -506,16 +457,24 @@ size_t demux(TSDemuxContext *ctx,
 
         // skip packets with errors and null packets
         if((hdr.flags & TSPF_TRANSPORT_ERROR_INDICATOR) ||
-           (hdr.pid == PID_NULL_PACKETS)) {
+           (hdr.pid == PID_NULL_PACKETS))
+        {
             continue;
         }
 
         if(hdr.pid == PID_PAT) {
-            // parse the PAT
-            res = parse_table(ctx, &ctx->pat.data, &hdr, &ctx->pat.table);
+            Table table;
+            memset(&table, 0, sizeof(table));
+            res = parse_table(ctx, &ctx->pat.data, &hdr, &table);
+
+            if(res == TSD_OK) {
+                printf("PAT parsed: 0x%02x, %d\n", hdr.pid, table.length);
+            } else if(res == TSD_INCOMPLETE_TABLE) {
+                printf("Incomplete Table\n");
+            }
         } else if (hdr.pid == PID_CAT || hdr.pid == PID_TSDT ||
                    (hdr.pid > PID_RESERVED_FUTURE && hdr.pid <= PID_ATSC_PSIP_SI)) {
-            // TODO:
+            // TODO: Parse other table
         }
     }
 

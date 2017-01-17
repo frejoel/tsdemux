@@ -42,7 +42,7 @@
 // forward declarations
 typedef struct TSDemuxContext TSDemuxContext;
 typedef struct Table Table;
-
+typedef struct TableSection TableSection;
 
 /**
  * Memory Allocator.
@@ -73,7 +73,7 @@ typedef void (*tsd_free) (void *mem);
 /**
  * Table Callback.
  */
-typedef void (*tsd_on_table) (TSDemuxContext *ctx, Table *table);
+typedef void (*tsd_on_table) (TSDemuxContext *ctx, TableSection *table);
 
 /**
  * Return codes.
@@ -411,16 +411,17 @@ typedef struct TableSection {
     uint8_t section_number;
     uint8_t last_section_number;
     uint32_t crc_32;
+    uint8_t *section_data;
+    size_t section_data_length;
 } TableSection;
 
 /**
- * Table structure.
- * Represents a complete Table which is made up of Table Sections.
+ * Table.
+ * Represents a table which is made up of multiple sections.
  */
 typedef struct Table {
-    TableSection **sections;
+    TableSection *sections;
     size_t length;
-    size_t capacity;
 } Table;
 
 /**
@@ -437,7 +438,6 @@ typedef struct TSDemuxContext {
 
     struct {
         DataContext data;
-        Table table;
     } pat;
 } TSDemuxContext;
 
@@ -487,14 +487,10 @@ TSCode parse_table(TSDemuxContext *ctx,
                    TSPacket *pkt,
                    Table *table);
 
-TSCode parse_table_section(TSDemuxContext *ctx,
-                           const void *data,
-                           size_t size,
-                           TableSection *section);
-
-TSCode add_table_section(TSDemuxContext *ctx,
-                         Table *table,
-                         TableSection *section);
+TSCode parse_table_sections(TSDemuxContext *ctx,
+                            uint8_t *data,
+                            size_t size,
+                            Table *table);
 
 TSCode parse_pes(TSDemuxContext *ctx,
                  const void *data,

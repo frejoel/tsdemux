@@ -393,11 +393,6 @@ typedef struct PESPacket {
     void *pes_packet_data_byte;
 } PESPacket;
 
-typedef struct PIDMap {
-    uint16_t program_number;
-    uint16_t pid;
-} PIDMap;
-
 /**
  * Table Section.
  * Represents any short or long form table section, both PSI and private.
@@ -423,6 +418,16 @@ typedef struct Table {
     TableSection *sections;
     size_t length;
 } Table;
+
+/**
+ * PAT Data.
+ * PAT Data found extracted from the PAT Table sections.
+ */
+typedef struct PATData {
+    uint16_t *program_number;
+    uint16_t *pid;
+    size_t length;
+} PATData;
 
 /**
  * TS Demux Context.
@@ -491,6 +496,11 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
                             uint8_t *data,
                             size_t size,
                             Table *table);
+
+TSCode parse_pat(TSDemuxContext *ctx,
+                 const uint8_t *data,
+                 size_t size,
+                 PATData* pat);
 
 TSCode parse_pes(TSDemuxContext *ctx,
                  const void *data,

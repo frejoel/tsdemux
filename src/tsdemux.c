@@ -329,9 +329,47 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
-TSCode parse_table_pat(TSDemuxContext *ctx,
-                       TableSection *section)
+TSCode parse_pat(TSDemuxContext *ctx,
+                 const uint8_t *data,
+                 size_t size,
+                 PATData *pat)
 {
+    if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
+    if(data == NULL)                return TSD_INVALID_DATA;
+    if(size < 4 || size % 4 != 0)   return TSD_INVALID_DATA_SIZE;
+    if(pat == NULL)                 return TSD_INVALID_ARGUMENT;
+
+    size_t count = size / 4;
+    size_t new_length = pat->length + count;
+    uint16_t *pid_data = NULL;
+    uint16_t *prog_data = NULL;
+
+    if(pat->length) {
+        pid_data = (uint16_t*)ctx->realloc(pat->pid, new_length * 2);
+        prog_data = (uint16_t*)ctx->realloc(pat->program_number, new_length * 2);
+    } else {
+        pid_data = (uint16_t*)ctx->malloc(new_length * 2);
+        prog_data = (uint16_t*)ctx->malloc(new_length * 2);
+    }
+
+    if(!pid_data || !prog_data) {
+        if(prog_data) ctx->free(prog_data);
+        if(pid_data) ctx->free(pid_data);
+        return TSD_OUT_OF_MEMORY;
+    }
+
+    size_t i;
+    for(i=pat->length; i < new_length; ++i) {
+        prog_data[i] = parse_uint16(*((uint16_t*)data));
+        data += 2;
+        pid_data[i] = parse_uint16(*((uint16_t*)data)) & 0x1FFF;
+        data += 2;
+    }
+
+    pat->pid = pid_data;
+    pat->program_number = prog_data;
+    pat->length = new_length;
+
     return TSD_OK;
 }
 

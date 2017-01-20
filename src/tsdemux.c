@@ -260,7 +260,7 @@ TSCode parse_table(TSDemuxContext *ctx,
     while(ptr < dataCtx->write) {
         uint16_t section_len = parse_uint16(*((uint16_t*)(ptr+1)));
         section_len &= 0x0FFF;
-        ptr += section_len + 2;
+        ptr += section_len + 3;
         section_count++;
 
         if((ptr+1) < dataCtx->write && *(ptr+1) == 0xFF) {
@@ -269,12 +269,10 @@ TSCode parse_table(TSDemuxContext *ctx,
             table->sections = (TableSection*) ctx->calloc(section_count,
                               sizeof(TableSection));
 
-            res = parse_table_sections(ctx,
-                                       dataCtx->buffer,
-                                       dataCtx->size,
-                                       table);
-
-            return res;
+            return parse_table_sections(ctx,
+                                        dataCtx->buffer,
+                                        dataCtx->size,
+                                        table);
         }
     }
 
@@ -313,6 +311,7 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
             section->section_data = ptr+5;
             uint32_t *ptr32 = (uint32_t*)(ptr + (section->section_length - 4));
             section->crc_32 = parse_uint32(*ptr32);
+            section->section_data_length = section->section_length - 4;
         } else {
             // set everything to zero for short form
             section->transport_stream_id = 0;
@@ -320,6 +319,8 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
             section->section_number = 0;
             section->last_section_number = 0;
             section->crc_32 = 0;
+            section->section_data = ptr;
+            section->section_data_length = section->section_length;
         }
 
         ptr += section->section_length;
@@ -468,6 +469,7 @@ size_t demux(TSDemuxContext *ctx,
 
             if(res == TSD_OK) {
                 printf("PAT parsed: 0x%02x, %d\n", hdr.pid, table.length);
+
             } else if(res == TSD_INCOMPLETE_TABLE) {
                 printf("Incomplete Table\n");
             }

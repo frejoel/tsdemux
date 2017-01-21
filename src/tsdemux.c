@@ -375,12 +375,16 @@ TSCode parse_pat(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
-
 TSCode parse_pmt(TSDemuxContext *ctx,
                  const uint8_t *data,
                  size_t size,
                  PMTData *pmt)
 {
+    if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
+    if(data == NULL)                return TSD_INVALID_DATA;
+    if(size < 4)                    return TSD_INVALID_DATA_SIZE;
+    if(pmt == NULL)                 return TSD_INVALID_ARGUMENT;
+
     return TSD_OK;
 }
 

@@ -375,6 +375,15 @@ TSCode parse_pat(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
+
+TSCode parse_pmt(TSDemuxContext *ctx,
+                 const uint8_t *data,
+                 size_t size,
+                 PMTData *pmt)
+{
+    return TSD_OK;
+}
+
 TSCode parse_pes(TSDemuxContext *ctx,
                  const void *data,
                  size_t size,

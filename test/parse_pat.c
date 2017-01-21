@@ -1,5 +1,6 @@
 #include "test.h"
 #include <tsdemux.h>
+#include <string.h>
 
 void test_parse_pat_input(void);
 void test_parse_pat_data(void);

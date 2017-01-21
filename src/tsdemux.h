@@ -425,13 +425,49 @@ typedef struct Table {
 
 /**
  * PAT Data.
- * PAT Data found extracted from the PAT Table sections.
+ * PAT Data extracted from PAT Table Sections.
  */
 typedef struct PATData {
     uint16_t *program_number;
     uint16_t *pid;
     size_t length;
 } PATData;
+
+/**
+ * PMT Descriptor.
+ * Outter or Inner Descriptor found within the PMT.
+ */
+typedef struct PMTDescriptor {
+    uint8_t tag;
+    uint8_t length;
+    uint8_t *data;
+} PMTDescriptor;
+
+/**
+ * Program Element.
+ * Description of a Program from the PMT.
+ */
+typedef struct ProgramElement {
+    uint8_t stream_type;
+    uint16_t elementary_pid;
+    uint16_t es_info_length;
+    PMTDescriptor *descriptors;
+    size_t descriptors_length;
+} ProgramElement;
+
+/**
+ * PMT Data.
+ * PMT Data extracted from PMT Table Sections.
+ */
+typedef struct PMTData {
+    uint16_t pcr_pid;
+    uint16_t program_info_length;
+    PMTDescriptor *descriptors;
+    size_t descriptors_length;
+    ProgramElement program_elements;
+    size_t program_elements_length;
+    uint32_t crc32;
+} PMTData;
 
 /**
  * TS Demux Context.
@@ -469,7 +505,7 @@ size_t demux(TSDemuxContext *ctx, void *data, size_t size, TSCode *code);
  * Parses a TS Packet from the supplied data.
  * The parsed output is put into the hdr parameter supplied.
  * The hdr pointer must be a pointer to a valid TSPacket object.
- * @param ctx The TSDemuxContext.
+ * @param ctx The context being used to demux.
  * @param data The TS data to parse.
  * @param size The number of bytes to parse.
  * @param hdr The ouput of the parsing will do into the object referenced by
@@ -485,26 +521,87 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
  * Parse TS Packet Adaption Field.
  * Parses the Adaption Field found inside a TSPacket.
  * This function is called internally when parsing TS Packets.
+ * @param ctx The context being used to demux.
+ * @param data The data to parse.
+ * @param size The size of the data to parse.
+ * @param adap The AdaptatioField object that will store the result.
+ * @return TSD_OK on success.
  */
 TSCode parse_adaptation_field(TSDemuxContext *ctx,
                               const void *data,
                               size_t size,
                               AdaptationField *adap);
 
+/**
+ * Parses Table packets.
+ * Parses a series of packets to construct a generic table. A Table
+ * can be contained within a single Packet or across multiple.
+ * The data contained within the table to produce a PAT, PMT or CAT
+ * needs to be parsed once the generic table has been parsed.
+ * This function supports both short and long form tables.
+ * @param ctx The context being used to demux.
+ * @param dataCtx This provided a context for the table if it extends
+ *                across multiple packets.
+ * @param pkt The packet to parse.
+ * @param table Where to store the table output.
+ * @return TSD_OK will be returned on successful parsing of a table
+ *                TSD_INCOMPLETE_TABLE will be returned when there is
+ *                not enough data to complete the table. parse_table
+ *                will then need to be called with the next packets
+ *                idenitfied with the sample table PID.
+ */
+
 TSCode parse_table(TSDemuxContext *ctx,
                    DataContext *dataCtx,
                    TSPacket *pkt,
                    Table *table);
 
+/**
+ * Parses all the Table Sections to form a Table.
+ * Takes complete Table data, which is all the Table Sections that
+ * make up a table, and parses them into the supplied Table object.
+ * This is called internall by parse_table.
+ * @param ctx The context being used to demux.
+ * @param data The raw Table data to parse.
+ * @param size The number of bytes that make up the table.
+ * @param table The Table where the TableSections will be stored.
+ * @return TSD_OK on success.
+ */
 TSCode parse_table_sections(TSDemuxContext *ctx,
                             uint8_t *data,
                             size_t size,
                             Table *table);
 
+/**
+ * Parses PAT data from a Table.
+ * The table data is the data supplied by a Table object once a
+ * generic table has been processed using parse_table.
+ * @param ctx The context being used to demux.
+ * @param data The table data to parse into PAT values.
+ * @param size The size of the table data. Should be in multiple of 4
+ *             bytes
+ * @param pat The PATData that will store the result.
+ * @return Returns TSD_OK on success.
+ */
 TSCode parse_pat(TSDemuxContext *ctx,
                  const uint8_t *data,
                  size_t size,
                  PATData* pat);
+
+/**
+ * Parses PMT data from a Table.
+ * The table data is the data supploed by a Table object once a
+ * generic table has been processed using parse_table.
+ * @param ctx The context being used to demux.
+ * @param data The table data to parse into a PMT.
+ * @param size The size of the table data.
+ * @param pmt The PMTData that will store the result.
+ * @return Returns TSD_OK on success.
+ */
+TSCode parse_pmt(TSDemuxContext *ctx,
+                 const uint8_t *data,
+                 size_t size,
+                 PMTData *pmt);
 
 TSCode parse_pes(TSDemuxContext *ctx,
                  const void *data,
@@ -516,7 +613,7 @@ TSCode parse_pes(TSDemuxContext *ctx,
  * Initializes a Data Context. Do not call multiple times on the same Context
  * unless the context has been destroyed.
  * A DataContext must be initialized before being used anywhere in the API.
- * @param ctx The TSDemuxContext.
+ * @param ctx The context being used to demux.
  * @param dataCtx The DataContext to initialize.
  * @return TSD_OK on succes.
  */
@@ -530,7 +627,7 @@ TSCode data_context_init(TSDemuxContext *ctx, DataContext *dataCtx);
  * Do not call data_context_destroy on an unitialized DataContext, unexecpted
  * behavior will occur.
  * It is possible to reinitialize a DataContext once it has been destroyed.
- * @param ctx The TSDemuxContext.
+ * @param ctx The context being used to demux.
  * @param dataCtx The DataContext to destroy.
  * @return TSD_OK on success and if the DataContext has already been destroyed.
  */
@@ -542,7 +639,7 @@ TSCode data_context_destroy(TSDemuxContext *ctx, DataContext *dataCtx);
  * space in the DataContext buffer.
  * Supplying NULL data or a size of zero will cause data_context_write to return
  * an error.
- * @param ctx The TSDemuxContext.
+ * @param ctx The context being used to demux.
  * @param dataCtx The DataContext to write the data to.
  * @param data The data to write.
  * @param size The number of bytes to write.
@@ -555,7 +652,7 @@ TSCode data_context_write(TSDemuxContext *ctx, DataContext *dataCtx, const uint8
  * Resets the write buffer effecively clearing the buffer and starting over.
  * Re-uses the existing buffer even if it has previously been dynamically
  * allocated during a write process.
- * @param ctx The TSDemuxContext.
+ * @param ctx The context being used to demux.
  * @param dataCtx The DataContext to reset.
  * @return TSD_OK on success.
  */

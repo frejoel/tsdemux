@@ -121,7 +121,7 @@ void test_parse_longform_table(void)
     test_assert_equal(sec->flags & TBL_SECTION_SYNTAX_INDICATOR, TBL_SECTION_SYNTAX_INDICATOR, "section syntax indicator");
     test_assert_equal(sec->flags & TBL_CURRENT_NEXT_INDICATOR, TBL_CURRENT_NEXT_INDICATOR, "current next indicator");
     test_assert_equal(sec->section_length, 0x10, "section length");
-    test_assert_equal(sec->transport_stream_id, 0xFAEB, "transport stream id");
+    test_assert_equal(sec->u16.pat_transport_stream_id, 0xFAEB, "transport stream id");
     test_assert_equal(sec->version_number, 0b00001110, "version");
     test_assert_equal(sec->section_number, 0x00, "section number");
     test_assert_equal(sec->last_section_number, 0x00, "last section number");
@@ -195,7 +195,7 @@ void test_parse_shortform_table(void)
     test_assert_equal(sec->flags & TBL_SECTION_SYNTAX_INDICATOR, 0, "section syntax indicator");
     test_assert_equal(sec->flags & TBL_CURRENT_NEXT_INDICATOR, 0, "current next indicator");
     test_assert_equal(sec->section_length, 0x10, "section length");
-    test_assert_equal(sec->transport_stream_id, 0, "transport stream id");
+    test_assert_equal(sec->u16.pat_transport_stream_id, 0, "transport stream id");
     test_assert_equal(sec->version_number, 0, "version");
     test_assert_equal(sec->section_number, 0, "section number");
     test_assert_equal(sec->last_section_number, 0, "last section number");
@@ -357,9 +357,9 @@ void test_parse_multi_packet_table(void)
     test_assert_equal(sec1->section_length, 0x10, "section length 1");
     test_assert_equal(sec2->section_length, 0x10, "section length 2");
     test_assert_equal(sec3->section_length, 0x9E, "section length 3");
-    test_assert_equal(sec1->transport_stream_id, 0x349A, "transport stream id 1");
-    test_assert_equal(sec2->transport_stream_id, 0x45AB, "transport stream id 2");
-    test_assert_equal(sec3->transport_stream_id, 0x56BC, "transport stream id 3");
+    test_assert_equal(sec1->u16.pat_transport_stream_id, 0x349A, "transport stream id 1");
+    test_assert_equal(sec2->u16.pat_transport_stream_id, 0x45AB, "transport stream id 2");
+    test_assert_equal(sec3->u16.pat_transport_stream_id, 0x56BC, "transport stream id 3");
     test_assert_equal(sec1->version_number, 0b00000010, "version 1");
     test_assert_equal(sec2->version_number, 0b00000010, "version 2");
     test_assert_equal(sec3->version_number, 0b00000010, "version 3");

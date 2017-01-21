@@ -401,7 +401,11 @@ typedef struct TableSection {
     uint8_t table_id;
     int flags;
     uint16_t section_length;
-    uint16_t transport_stream_id;
+    union {
+        uint16_t pat_transport_stream_id;
+        uint16_t pmt_program_number;
+        uint16_t cat_reserved;
+    } u16;
     uint8_t version_number;
     uint8_t section_number;
     uint8_t last_section_number;

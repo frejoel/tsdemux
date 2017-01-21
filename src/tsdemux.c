@@ -303,7 +303,9 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
         // are we dealing with a long form or short form table?
         if(section->flags & TBL_SECTION_SYNTAX_INDICATOR) {
             // long form table properties
-            section->transport_stream_id = parse_uint16(*((uint16_t*)(ptr)));
+            // Note that the pat_transport_stream_id is a union between PAT, CAT
+            // and PMT data.
+            section->u16.pat_transport_stream_id = parse_uint16(*((uint16_t*)(ptr)));
             section->version_number = ((*(ptr+2)) >> 1) & 0x1F;
             section->flags |= ((*(ptr+2)) & 0x01) << 2; // current next indicator
             section->section_number = *(ptr+3);
@@ -314,7 +316,7 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
             section->section_data_length = section->section_length - 4;
         } else {
             // set everything to zero for short form
-            section->transport_stream_id = 0;
+            section->u16.pat_transport_stream_id = 0;
             section->version_number = 0;
             section->section_number = 0;
             section->last_section_number = 0;

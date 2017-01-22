@@ -440,7 +440,7 @@ typedef struct PATData {
 typedef struct PMTDescriptor {
     uint8_t tag;
     uint8_t length;
-    uint8_t *data;
+    const uint8_t *data;
 } PMTDescriptor;
 
 /**
@@ -464,9 +464,9 @@ typedef struct PMTData {
     uint16_t program_info_length;
     PMTDescriptor *descriptors;
     size_t descriptors_length;
-    ProgramElement program_elements;
+    ProgramElement *program_elements;
     size_t program_elements_length;
-    uint32_t crc32;
+    uint32_t crc_32;
 } PMTData;
 
 /**

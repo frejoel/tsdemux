@@ -375,6 +375,42 @@ TSCode parse_pat(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
+size_t descriptor_count(const uint8_t *ptr, size_t length)
+{
+    // count the number of descriptors
+    const uint8_t *end = &ptr[length];
+    size_t count = 0;
+
+    while(ptr < end) {
+        ++count;
+        uint8_t desc_len = ptr[1];
+        ptr = &ptr[2 + desc_len];
+    }
+
+    return count;
+}
+
+size_t parse_descriptor(const uint8_t* data,
+                        size_t size,
+                        PMTDescriptor *descriptors,
+                        size_t length)
+{
+    size_t i=0;
+    PMTDescriptor *desc;
+    const uint8_t *ptr = data;
+    const uint8_t *end = &data[size];
+
+    for(i=0; i < length && ptr < end; ++i) {
+        desc = &descriptors[i];
+        desc->tag = ptr[0];
+        desc->length = ptr[1];
+        desc->data = &ptr[2];
+        ptr = &ptr[desc->length + 2];
+    }
+
+    return (size_t)(ptr - data);
+}
+
 TSCode parse_pmt(TSDemuxContext *ctx,
                  const uint8_t *data,
                  size_t size,
@@ -385,6 +421,94 @@ TSCode parse_pmt(TSDemuxContext *ctx,
     if(size < 4)                    return TSD_INVALID_DATA_SIZE;
     if(pmt == NULL)                 return TSD_INVALID_ARGUMENT;
 
+    const uint8_t *ptr = data;
+    pmt->pcr_pid = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
+    ptr += 2;
+    pmt->program_info_length = parse_uint16(*((uint16_t*)ptr)) & 0x0FFF;
+    ptr += 2;
+
+    // parse the outter descriptor into a one-dimensional array
+    size_t desc_size = (size_t)pmt->program_info_length;
+    size_t count = 0;
+
+    if(desc_size > 0) {
+        count = descriptor_count(ptr, desc_size);
+        // create and parse the descriptors
+        pmt->descriptors = (PMTDescriptor*) ctx->calloc(count,
+                           sizeof(PMTDescriptor));
+        if(!pmt->descriptors) return TSD_OUT_OF_MEMORY;
+        pmt->descriptors_length = count;
+
+        // parse all the outter descriptors
+        parse_descriptor(ptr, desc_size, pmt->descriptors, count);
+        ptr = &ptr[desc_size];
+    }
+
+    // parse the program elements.
+    // As above, determine how many program elements we will have
+    const uint8_t *pe_ptr = ptr;
+    const uint8_t *pe_end = &data[size - 4]; // acounting for the CRC32
+    count = 0; // reset the counter
+
+    while(pe_ptr < pe_end) {
+        ++count;
+        pe_ptr += 3;
+        uint16_t len = parse_uint16(*((uint16_t*)pe_ptr)) & 0x0FFF;
+        pe_ptr = &pe_ptr[len];
+    }
+
+    // there might not be any Program Elements
+    if(count == 0) {
+        pmt->crc_32 = parse_uint32(*((uint32_t*)ptr));
+        return TSD_OK;
+    }
+
+    pmt->program_elements = (ProgramElement*) ctx->calloc(count,
+                            sizeof(ProgramElement));
+
+    if(!pmt->program_elements) {
+        ctx->free(pmt->descriptors);
+        pmt->descriptors = NULL;
+        pmt->descriptors_length = 0;
+        return TSD_OUT_OF_MEMORY;
+    }
+
+    // parse the Program Elements
+    pmt->program_elements_length = count;
+    size_t i;
+    for(i=0; i<count; ++i) {
+        ProgramElement *prog = &pmt->program_elements[i];
+        prog->stream_type = *ptr;
+        ptr++;
+        prog->elementary_pid = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
+        ptr += 2;
+        prog->es_info_length = parse_uint16(*((uint16_t*)ptr)) & 0x0FFF;
+        ptr += 2;
+        // parse the inner descriptors for each program as above,
+        // find out how many there are, then allocate a single array
+        desc_size = (size_t) prog->es_info_length;
+        if(desc_size == 0) {
+            prog->descriptors = NULL;
+            prog->descriptors_length = 0;
+            continue;
+        }
+
+        size_t inner_count = descriptor_count(ptr, desc_size);
+        if(inner_count == 0) {
+            prog->descriptors = NULL;
+            prog->descriptors_length = 0;
+            ptr = &ptr[desc_size];
+            continue;
+        }
+
+        prog->descriptors = (PMTDescriptor*) ctx->calloc(inner_count,
+                            sizeof(PMTDescriptor));
+        prog->descriptors_length = inner_count;
+        parse_descriptor(ptr, desc_size, prog->descriptors, inner_count);
+        ptr = &ptr[desc_size];
+    }
+
+    pmt->crc_32 = parse_uint32(*((uint32_t*)ptr));
     return TSD_OK;
 }
 

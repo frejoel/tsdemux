@@ -4,11 +4,13 @@
 
 void parse_pmt_input(void);
 void parse_pmt_data(void);
+void parse_pmt_empty_data(void);
 
 int main(int argc, char **argv)
 {
     parse_pmt_input();
     parse_pmt_data();
+    parse_pmt_empty_data();
     return 0;
 }
 
@@ -97,6 +99,48 @@ void parse_pmt_data(void)
     test_assert_equal(3, pmt.program_elements[1].descriptors[1].length, "program elements 2 descriptor length 2");
     test_assert_equal(memcmp(pmt.program_elements[1].descriptors[1].data, &data[33], 3), 0, "program element 2 descriptor data 2");
 
+    test_assert_equal(0xCCCCEE54, pmt.crc_32, "crc32");
+
+    test_end();
+}
+
+void parse_pmt_empty_data(void)
+{
+    test_start("parse pmt empty data");
+
+    TSDemuxContext ctx;
+    PMTData pmt;
+    TSCode res;
+
+    set_default_context(&ctx);
+    memset(&pmt, 0, sizeof(pmt));
+
+    uint8_t data[] = {
+        0xE0, 0x99, // PCR PID = 0x99
+        0xF0, 0x00, // program info length = 9
+        0xEF, // stream type
+        0xE0, 0x3E, // elementary PID
+        0xF0, 0x00, // ES Info Length = 0
+        0x44, // stream type
+        0xE1, 0x51, // elementary PID
+        0xF0, 0x00, // ES Info Length = 10
+        0xCC, 0xCC, 0xEE, 0x54, // CRC32
+    };
+
+    res = parse_pmt(&ctx, data, sizeof(data), &pmt);
+    test_assert_equal(TSD_OK, res, "parse valid data");
+    test_assert_equal(0x99, pmt.pcr_pid, "PCR PID");
+    test_assert_equal(0x00, pmt.program_info_length, "program info length");
+    test_assert_equal(0, pmt.descriptors_length, "descriptors length");
+    test_assert_equal(2, pmt.program_elements_length, "program elements length");
+    test_assert_equal(0xEF, pmt.program_elements[0].stream_type, "stream tpye 1");
+    test_assert_equal(0x003E, pmt.program_elements[0].elementary_pid, "elementary pid 1");
+    test_assert_equal(0x00, pmt.program_elements[0].es_info_length, "es info lenth 1");
+    test_assert_equal(0, pmt.program_elements[0].descriptors_length, "program elements descriptor length 1");
+    test_assert_equal(0x44, pmt.program_elements[1].stream_type, "stream type 1");
+    test_assert_equal(0x0151, pmt.program_elements[1].elementary_pid, "elementary pid 1");
+    test_assert_equal(0x00, pmt.program_elements[1].es_info_length, "es info lenth 1");
+    test_assert_equal(0, pmt.program_elements[1].descriptors_length, "program elements 2 descriptor length 1");
     test_assert_equal(0xCCCCEE54, pmt.crc_32, "crc32");
 
     test_end();

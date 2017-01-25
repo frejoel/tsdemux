@@ -392,11 +392,11 @@ size_t descriptor_count(const uint8_t *ptr, size_t length)
 
 size_t parse_descriptor(const uint8_t* data,
                         size_t size,
-                        PMTDescriptor *descriptors,
+                        Descriptor *descriptors,
                         size_t length)
 {
     size_t i=0;
-    PMTDescriptor *desc;
+    Descriptor *desc;
     const uint8_t *ptr = data;
     const uint8_t *end = &data[size];
 
@@ -434,8 +434,8 @@ TSCode parse_pmt(TSDemuxContext *ctx,
     if(desc_size > 0) {
         count = descriptor_count(ptr, desc_size);
         // create and parse the descriptors
-        pmt->descriptors = (PMTDescriptor*) ctx->calloc(count,
-                           sizeof(PMTDescriptor));
+        pmt->descriptors = (Descriptor*) ctx->calloc(count,
+                           sizeof(Descriptor));
         if(!pmt->descriptors) return TSD_OUT_OF_MEMORY;
         pmt->descriptors_length = count;
 
@@ -501,8 +501,8 @@ TSCode parse_pmt(TSDemuxContext *ctx,
             continue;
         }
 
-        prog->descriptors = (PMTDescriptor*) ctx->calloc(inner_count,
-                            sizeof(PMTDescriptor));
+        prog->descriptors = (Descriptor*) ctx->calloc(inner_count,
+                            sizeof(Descriptor));
         prog->descriptors_length = inner_count;
         parse_descriptor(ptr, desc_size, prog->descriptors, inner_count);
         ptr = &ptr[desc_size];
@@ -530,6 +530,30 @@ TSCode parse_pes(TSDemuxContext *ctx,
     if((value >> 8) != 0x01) return TSD_INVALID_START_CODE_PREFIX;
 
     pes->stream_id = (uint8_t)(value & 0x000000FF);
+
+    return TSD_OK;
+}
+
+TSCode parse_cat(TSDemuxContext *ctx,
+                 const uint8_t *data,
+                 size_t size,
+                 CATData* cat)
+{
+
+    if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
+    if(data == NULL)                return TSD_INVALID_DATA;
+    if(size < 2)                    return TSD_INVALID_DATA_SIZE;
+    if(cat == NULL)                 return TSD_INVALID_ARGUMENT;
+
+    size_t count = descriptor_count(data, size);
+    if(count == 0) {
+        cat->descriptors = NULL;
+        cat->descriptors_length = 0;
+    } else {
+        cat->descriptors = (Descriptor*) ctx->calloc(count, sizeof(Descriptor));
+        if(!cat->descriptors) return TSD_OUT_OF_MEMORY;
+        cat->descriptors_length = count;
+    }
 
     return TSD_OK;
 }

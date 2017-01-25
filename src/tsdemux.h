@@ -437,11 +437,11 @@ typedef struct PATData {
  * PMT Descriptor.
  * Outter or Inner Descriptor found within the PMT.
  */
-typedef struct PMTDescriptor {
+typedef struct Descriptor {
     uint8_t tag;
     uint8_t length;
     const uint8_t *data;
-} PMTDescriptor;
+} Descriptor;
 
 /**
  * Program Element.
@@ -451,7 +451,7 @@ typedef struct ProgramElement {
     uint8_t stream_type;
     uint16_t elementary_pid;
     uint16_t es_info_length;
-    PMTDescriptor *descriptors;
+    Descriptor *descriptors;
     size_t descriptors_length;
 } ProgramElement;
 
@@ -462,12 +462,21 @@ typedef struct ProgramElement {
 typedef struct PMTData {
     uint16_t pcr_pid;
     uint16_t program_info_length;
-    PMTDescriptor *descriptors;
+    Descriptor *descriptors;
     size_t descriptors_length;
     ProgramElement *program_elements;
     size_t program_elements_length;
     uint32_t crc_32;
 } PMTData;
+
+/**
+ * CAT Data.
+ * CAT Data extracted from CAT Table Sections.
+ */
+typedef struct CATData {
+    Descriptor *descriptors;
+    size_t descriptors_length;
+} CATData;
 
 /**
  * TS Demux Context.
@@ -587,6 +596,21 @@ TSCode parse_pat(TSDemuxContext *ctx,
                  const uint8_t *data,
                  size_t size,
                  PATData* pat);
+
+/**
+ * Parses CAT data from a Table.
+ * The table data is the data supplied by a Table object once a
+ * generic table has been processed using parse_table.
+ * @param ctx The context being used to demux.
+ * @param data The table data to parse into CAT values.
+ * @param size The size of the table data.
+ * @param cat The CATData that will store the result.
+ * @return Returns TSD_OK on success.
+ */
+TSCode parse_cat(TSDemuxContext *ctx,
+                 const uint8_t *data,
+                 size_t size,
+                 CATData* cat);
 
 /**
  * Parses PMT data from a Table.

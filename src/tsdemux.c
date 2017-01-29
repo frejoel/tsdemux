@@ -43,16 +43,27 @@ TSCode set_default_context(TSDemuxContext *ctx)
 {
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
 
+    memset(ctx, 0, sizeof(TSDemuxContext));
+
     ctx->malloc = malloc;
     ctx->realloc = realloc;
     ctx->calloc = calloc;
     ctx->free = free;
 
-    ctx->on_table_cb = NULL;
+    // initialize the user defined event callback
+    ctx->event_cb = (tsd_on_event) NULL;
 
     TSCode res = data_context_init(ctx, &ctx->pat.data);
 
     return res;
+}
+
+TSCode set_event_callback(TSDemuxContext *ctx, tsd_on_event callback)
+{
+    if(ctx == NULL)     return TSD_INVALID_CONTEXT;
+    // Note that we allow the callback to be NULL
+    ctx->event_cb = callback;
+    return TSD_OK;
 }
 
 TSCode parse_packet_header(TSDemuxContext *ctx,
@@ -271,7 +282,7 @@ TSCode parse_table(TSDemuxContext *ctx,
 
             return parse_table_sections(ctx,
                                         dataCtx->buffer,
-                                        dataCtx->size,
+                                        dataCtx->write - dataCtx->buffer,
                                         table);
         }
     }
@@ -311,9 +322,10 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
             section->section_number = *(ptr+3);
             section->last_section_number = *(ptr+4);
             section->section_data = ptr+5;
-            uint32_t *ptr32 = (uint32_t*)(ptr + (section->section_length - 4));
+            uint32_t *ptr32 = (uint32_t*)(&ptr[section->section_length - 4]);
             section->crc_32 = parse_uint32(*ptr32);
-            section->section_data_length = section->section_length - 4;
+            // the crc32 is not counted in the data
+            section->section_data_length = section->section_length - 9;
         } else {
             // set everything to zero for short form
             section->u16.pat_transport_stream_id = 0;
@@ -338,7 +350,7 @@ TSCode parse_pat(TSDemuxContext *ctx,
 {
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
     if(data == NULL)                return TSD_INVALID_DATA;
-    if(size < 4 || size % 4 != 0)   return TSD_INVALID_DATA_SIZE;
+    if(size < 4)                    return TSD_INVALID_DATA_SIZE;
     if(pat == NULL)                 return TSD_INVALID_ARGUMENT;
 
     size_t count = size / 4;
@@ -625,6 +637,58 @@ TSCode data_context_reset(TSDemuxContext *ctx, DataContext *dataCtx)
     return TSD_OK;
 }
 
+TSCode parse_table_complete(TSDemuxContext *ctx,
+                            DataContext *data,
+                            TSPacket *hdr,
+                            uint8_t **mem,
+                            size_t *size)
+{
+    Table table;
+    memset(&table, 0, sizeof(table));
+    TSCode res = parse_table(ctx, data, hdr, &table);
+
+    if(res != TSD_OK && res != TSD_INCOMPLETE_TABLE) {
+        data_context_reset(ctx, data);
+        return res;
+    }
+
+    // the could be incomplete at this point, so continue parsing
+    if(res == TSD_INCOMPLETE_TABLE || data->size == 0) {
+        return TSD_INCOMPLETE_TABLE;
+    }
+
+    // we have a complete table.
+    // create a contiguous block of data for parsing the table
+    size_t block_size = data->write - data->buffer;
+    void *block = ctx->malloc(block_size);
+    if(!block) {
+        data_context_reset(ctx, data);
+        return TSD_OUT_OF_MEMORY;
+    }
+
+    uint8_t *ptr = (uint8_t*) block;
+    size_t i;
+    size_t written = 0;
+
+    // go through all the sections and copy them into our temporary
+    // buffer
+    for(i=0; i<table.length; ++i) {
+        TableSection *sec = &table.sections[i];
+        if(!sec->section_data || sec->section_data_length == 0) {
+            continue;
+        }
+        size_t len = sec->section_data_length;
+        memcpy(ptr, sec->section_data, len);
+        written += len;
+        ptr = &ptr[len];
+    }
+
+    *size = written;
+    *mem = block;
+
+    return TSD_OK;
+}
+
 size_t demux(TSDemuxContext *ctx,
              void *data,
              size_t size,
@@ -656,6 +720,7 @@ size_t demux(TSDemuxContext *ctx,
         }
 
         remaining -= TSD_TSPACKET_SIZE;
+        ptr += TSD_TSPACKET_SIZE;
 
         // skip packets with errors and null packets
         if((hdr.flags & TSPF_TRANSPORT_ERROR_INDICATOR) ||
@@ -664,19 +729,83 @@ size_t demux(TSDemuxContext *ctx,
         }
 
         if(hdr.pid == PID_PAT) {
-            Table table;
-            memset(&table, 0, sizeof(table));
-            res = parse_table(ctx, &ctx->pat.data, &hdr, &table);
-
-            if(res == TSD_OK) {
-                printf("PAT parsed: 0x%02x, %d\n", hdr.pid, table.length);
-
-            } else if(res == TSD_INCOMPLETE_TABLE) {
-                printf("Incomplete Table\n");
+            uint8_t *block = NULL;
+            size_t written = 0;
+            res = parse_table_complete(ctx, &ctx->pat.data, &hdr, &block, &written);
+            if(res == TSD_INCOMPLETE_TABLE) {
+                continue;
             }
-        } else if (hdr.pid == PID_CAT || hdr.pid == PID_TSDT ||
-                   (hdr.pid > PID_RESERVED_FUTURE && hdr.pid <= PID_ATSC_PSIP_SI)) {
-            // TODO: Parse other table
+
+            if(res != TSD_OK) {
+                return res;
+            }
+
+            // parse the PAT
+            PATData *pat = &ctx->pat.value;
+            memset(pat, 0, sizeof(PATData));
+            res = parse_pat(ctx, block, written, pat);
+            if(TSD_OK == res) {
+                ctx->pat.valid = 1;
+                // create PMT parsers for each of the Programs
+                size_t pat_len = ctx->pat.value.length;
+                if(ctx->pmt.capacity < pat_len) {
+                    // free the existing data
+                    if(ctx->pmt.data) {
+                        ctx->free(ctx->pmt.data);
+                        ctx->free(ctx->pmt.values);
+                    }
+                    // allocate new arrays
+                    if(pat_len > 0) {
+                        ctx->pmt.data = (DataContext*) ctx->calloc(pat_len, sizeof(DataContext));
+                        if(!ctx->pmt.data) return TSD_OUT_OF_MEMORY;
+                        ctx->pmt.values = (PMTData*) ctx->calloc(pat_len, sizeof(PMTData));
+                        if(!ctx->pmt.values) {
+                            ctx->free(ctx->pmt.data);
+                            return TSD_OUT_OF_MEMORY;
+                        }
+                    }
+                    ctx->pmt.capacity = pat_len;
+                }
+                ctx->pmt.length = pat_len;
+
+                if(ctx->event_cb) {
+                    ctx->event_cb(ctx, TSD_EVENT_PAT, (void*)pat);
+                }
+            } else {
+                ctx->pat.valid = 0;
+            }
+
+            // reset the data context
+            data_context_reset(ctx, &ctx->pat.data);
+
+        } else if (hdr.pid > PID_RESERVED_NON_ATSC && hdr.pid <= PID_GENERAL_PURPOSE) {
+            // check to see if this PID is a PMT
+            if(ctx->pat.valid) {
+                size_t len = ctx->pat.value.length;
+                uint16_t *pids = ctx->pat.value.pid;
+                size_t i;
+
+                for(i=0; i<len; ++i) {
+                    if(pids[i] == hdr.pid) {
+                        uint8_t *block = NULL;
+                        size_t written = 0;
+                        res = parse_table_complete(ctx, &ctx->pmt.data[i], &hdr, &block, &written);
+                        if(res == TSD_INCOMPLETE_TABLE) {
+                            continue;
+                        }
+                        if(res != TSD_OK) {
+                            return res;
+                        }
+                        // parse the PMT Table
+                        res = parse_pmt(ctx, block, written, &ctx->pmt.values[i]);
+                        if(TSD_OK == res) {
+                            if(ctx->event_cb) {
+                                ctx->event_cb(ctx, TSD_EVENT_PMT, (void*)&ctx->pmt.values[i]);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 

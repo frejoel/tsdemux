@@ -44,6 +44,8 @@ typedef struct TSDemuxContext TSDemuxContext;
 typedef struct Table Table;
 typedef struct TableSection TableSection;
 
+typedef enum EventId EventId;
+
 /**
  * Memory Allocator.
  * Allocate memory block.
@@ -71,9 +73,11 @@ typedef void * (*tsd_realloc) (void *ptr, size_t size);
 typedef void (*tsd_free) (void *mem);
 
 /**
- * Table Callback.
+ * Event Callback.
  */
-typedef void (*tsd_on_table) (TSDemuxContext *ctx, TableSection *table);
+typedef void (*tsd_on_event) (TSDemuxContext *ctx,
+                              EventId id,
+                              void *data);
 
 /**
  * Return codes.
@@ -136,7 +140,7 @@ typedef enum PIDValueAllocation {
     PID_TSDT                                  = 0x0002,
     /** MPEG-2 Systems Reserved **/
     PID_RESERVED_MPEG2                        = 0x000F,
-    /** DVB Service Infomation **/
+    /** DVB Service Information **/
     PID_RESERVED_DVB_SI                       = 0x001F,
     /** ARIB Service Information **/
     PID_RESERVED_ARIB_SI                      = 0x002F,
@@ -248,6 +252,16 @@ typedef enum TableFlags {
     TBL_SECTION_SYNTAX_INDICATOR              = 0x02,
     TBL_CURRENT_NEXT_INDICATOR                = 0x04,
 } TableFlags;
+
+/**
+ * Event Id.
+ * The Id of all events that may occur during demux.
+ */
+typedef enum EventId {
+    TSD_EVENT_PAT                            = 0x0001,
+    TSD_EVENT_PMT                            = 0x0002,
+    TSD_EVENT_CAT                            = 0x0004,
+} EventId;
 
 /**
  * Data Context.
@@ -488,11 +502,24 @@ typedef struct TSDemuxContext {
     tsd_calloc calloc;
     tsd_free free;
 
-    tsd_on_table on_table_cb;
+    /** On Event Callback.
+     * User specified event Callback.
+     */
+    tsd_on_event event_cb;
 
     struct {
         DataContext data;
+        PATData value;
+        int valid;
     } pat;
+
+    struct {
+        DataContext *data;
+        PMTData *values;
+        size_t length;
+        size_t capacity;
+    } pmt;
+
 } TSDemuxContext;
 
 /**
@@ -503,6 +530,19 @@ typedef struct TSDemuxContext {
  * @return TSD_OK on success.
  */
 TSCode set_default_context(TSDemuxContext *ctx);
+
+/**
+ * Set Demux Context's Event Callback.
+ * Sets the callback for all events that occur during demuxing.
+ * Setting callback to NULL will remove an existing callback.
+ * The callback may be set during the demux process.
+ * @param ctx The Context to set the callback for.
+ * @param callback The callback function that will be called when an
+ *                 event occurs during the demux process. Set this to
+ *                 NULL to remove the current callback.
+ * @return Returns TSD_OK on success.
+ */
+TSCode set_event_callback(TSDemuxContext *ctx, tsd_on_event callback);
 
 /**
  * Demux a Transport Stream.
@@ -569,7 +609,7 @@ TSCode parse_table(TSDemuxContext *ctx,
  * Parses all the Table Sections to form a Table.
  * Takes complete Table data, which is all the Table Sections that
  * make up a table, and parses them into the supplied Table object.
- * This is called internall by parse_table.
+ * This is called internally by parse_table.
  * @param ctx The context being used to demux.
  * @param data The raw Table data to parse.
  * @param size The number of bytes that make up the table.

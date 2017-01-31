@@ -93,6 +93,7 @@ typedef enum TSCode {
     TSD_OUT_OF_MEMORY                         = 0x0007,
     TSD_INCOMPLETE_TABLE                      = 0x0008,
     TSD_NOT_A_TABLE_PACKET                    = 0x0009,
+    TSD_PARSE_ERROR                           = 0x000A,
 } TSCode;
 
 /**
@@ -261,6 +262,9 @@ typedef enum EventId {
     TSD_EVENT_PAT                            = 0x0001,
     TSD_EVENT_PMT                            = 0x0002,
     TSD_EVENT_CAT                            = 0x0004,
+    TSD_EVENT_TSDT                           = 0x0008,
+    /// Unsupported Table
+    TSD_EVENT_TABLE                          = 0x0010,
 } EventId;
 
 /**
@@ -493,6 +497,16 @@ typedef struct CATData {
 } CATData;
 
 /**
+ * Table Data.
+ * Raw Table Data extracted from a Table which we don't support the parsing of.
+ */
+typedef struct TableData {
+    Table *table;   /// Table section information
+    uint8_t *data;  /// Contiguous block of the table section data
+    size_t size;    /// The number of bytes in data
+} TableData;
+
+/**
  * TS Demux Context.
  * The TSDEmuxContext is used to separate multiple demux tasks.
  */
@@ -671,6 +685,29 @@ TSCode parse_pes(TSDemuxContext *ctx,
                  const void *data,
                  size_t size,
                  PESPacket *pes);
+
+/**
+ * Parses and Extracts data from a Table.
+ * Parses packets that make up a table and Extracts the data into a contiguous
+ * memory buffer.
+ * @param ctx The context being used to demux.
+ * @param data The DataContext containing the raw Table information.
+ * @param hdr The next packet to parse
+ * @param table A pointer to a Table Structure that will be populated with the
+ *              table section information.
+ * @param mem A pointer used to store the memry buffer location.
+ * @param size A pointer to an integer used to store the number of bytes written
+ *             to the memory buffer.
+ * @return TSD_OK once the table is parsed completely. TSD_INCOMPLETE_TABLE if
+ *         the table is incomplete and requires more packets to be parsed.
+ *         Any other response must be treated as an error.
+ */
+TSCode extract_table_data(TSDemuxContext *ctx,
+                          DataContext *data,
+                          TSPacket *hdr,
+                          Table *table,
+                          uint8_t **mem,
+                          size_t *size);
 
 /**
  * Data Content Initializtion.

@@ -22,7 +22,6 @@ void test_input(void)
     test_start("parse_table inputs");
 
     TSDemuxContext ctx;
-    DataContext dataCtx;
     TSPacket pkt;
     Table table;
     TSCode res;
@@ -37,15 +36,12 @@ void test_input(void)
     pkt.data_bytes_length = 0;
 
     set_default_context(&ctx);
-    data_context_init(&ctx, &dataCtx);
 
-    res = parse_table(NULL, NULL, NULL, NULL);
+    res = parse_table(NULL, NULL, NULL);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "all null");
-    res = parse_table(&ctx, NULL, NULL, NULL);
-    test_assert_equal(res, TSD_INVALID_ARGUMENT, "null DataContext");
-    res = parse_table(&ctx, &dataCtx, NULL, NULL);
+    res = parse_table(&ctx, NULL, NULL);
     test_assert_equal(res, TSD_INVALID_ARGUMENT, "null packet");
-    res = parse_table(&ctx, &dataCtx, &pkt, NULL);
+    res = parse_table(&ctx, &pkt, NULL);
     test_assert_equal(res, TSD_INVALID_ARGUMENT, "null table");
 
     test_end();
@@ -56,7 +52,6 @@ void test_parse_longform_table(void)
     test_start("parse_table parsing long form table");
 
     TSDemuxContext ctx;
-    DataContext dataCtx;
     TSPacket pkt;
     Table table;
     TSCode res;
@@ -111,9 +106,8 @@ void test_parse_longform_table(void)
     pkt.data_bytes_length = sizeof(tableData);
 
     set_default_context(&ctx);
-    data_context_init(&ctx, &dataCtx);
 
-    res = parse_table(&ctx, &dataCtx, &pkt, &table);
+    res = parse_table(&ctx, &pkt, &table);
     test_assert_equal(res, TSD_OK, "valid table");
     test_assert_equal(1, table.length, "table length");
     TableSection *sec = &table.sections[0];
@@ -134,7 +128,6 @@ void test_parse_shortform_table(void)
     test_start("parse_table parsing short form tables");
 
     TSDemuxContext ctx;
-    DataContext dataCtx;
     TSPacket pkt;
     Table table;
     TSCode res;
@@ -185,9 +178,8 @@ void test_parse_shortform_table(void)
     pkt.data_bytes_length = sizeof(tableData);
 
     set_default_context(&ctx);
-    data_context_init(&ctx, &dataCtx);
 
-    res = parse_table(&ctx, &dataCtx, &pkt, &table);
+    res = parse_table(&ctx, &pkt, &table);
     test_assert_equal(res, TSD_OK, "valid table");
     test_assert_equal(1, table.length, "table length");
     TableSection *sec = &table.sections[0];
@@ -208,7 +200,6 @@ void test_parse_multi_packet_table(void)
     test_start("parse_table parsing multi packet table");
 
     TSDemuxContext ctx;
-    DataContext dataCtx;
     TSPacket pkt;
     TSPacket pkt2;
     Table table;
@@ -333,11 +324,10 @@ void test_parse_multi_packet_table(void)
     pkt2.data_bytes_length = sizeof(tableData2);
 
     set_default_context(&ctx);
-    data_context_init(&ctx, &dataCtx);
 
-    res = parse_table(&ctx, &dataCtx, &pkt, &table);
+    res = parse_table(&ctx, &pkt, &table);
     test_assert_equal(res, TSD_INCOMPLETE_TABLE, "incomplete table");
-    res = parse_table(&ctx, &dataCtx, &pkt2, &table);
+    res = parse_table(&ctx, &pkt2, &table);
     test_assert_equal(res, TSD_OK, "complete table");
     test_assert_equal(3, table.length, "table length");
 

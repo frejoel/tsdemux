@@ -53,9 +53,7 @@ TSCode set_default_context(TSDemuxContext *ctx)
     // initialize the user defined event callback
     ctx->event_cb = (tsd_on_event) NULL;
 
-    TSCode res = data_context_init(ctx, &ctx->pat.data);
-
-    return res;
+    return TSD_OK;
 }
 
 TSCode set_event_callback(TSDemuxContext *ctx, tsd_on_event callback)
@@ -218,13 +216,58 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
+TSCode get_data_context(TSDemuxContext *ctx,
+                        uint8_t table_id,
+                        uint16_t table_ext,
+                        uint8_t version,
+                        DataContext **context)
+{
+    if(ctx == NULL)         return TSD_INVALID_CONTEXT;
+    if(context == NULL)     return TSD_INVALID_ARGUMENT;
+
+    // create a 32-bit Id for this table
+    uint32_t id = (((uint32_t)table_id) << 24) |
+                  (((uint32_t)table_ext) << 8) |
+                  ((uint32_t)version);
+
+    // go through the DataContexts already Available and see if we have a match
+    size_t i;
+    for(i=0; i<ctx->buffers.length; ++i) {
+        if(ctx->buffers.pool[i].id == id) {
+            // found a matching DataContext
+            *context = &ctx->buffers.pool[i];
+            return TSD_OK;
+        }
+    }
+
+    // we didn't find a DataContext, create a new one and add it to the Pool
+    DataContext *dataCtx = NULL;
+    size_t len = ctx->buffers.length + 1;
+    if(len == 1) {
+        dataCtx = (DataContext*) ctx->malloc(sizeof(DataContext));
+    } else {
+        size_t size = sizeof(DataContext) * len;
+        dataCtx = (DataContext*) ctx->realloc(dataCtx, size);
+    }
+
+    if(!dataCtx) {
+        return TSD_OUT_OF_MEMORY;
+    }
+    ctx->buffers.pool = dataCtx;
+    ctx->buffers.length = len;
+    dataCtx = &dataCtx[len - 1];
+
+    // initialize the DataContext
+    TSCode res = data_context_init(ctx, dataCtx);
+    *context = dataCtx;
+    return res;
+}
+
 TSCode parse_table(TSDemuxContext *ctx,
-                   DataContext *dataCtx,
                    TSPacket *pkt,
                    Table *table)
 {
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
-    if(dataCtx == NULL)             return TSD_INVALID_ARGUMENT;
     if(pkt == NULL)                 return TSD_INVALID_ARGUMENT;
     if(table == NULL)               return TSD_INVALID_ARGUMENT;
 
@@ -241,19 +284,41 @@ TSCode parse_table(TSDemuxContext *ctx,
         // there is a new table section somewhere in this packet.
         // if we haven't starting writing any table sections yet we'll need to
         // jump to this location
-        if(dataCtx->buffer == dataCtx->write) {
+        if(ctx->buffers.active == NULL) {
             pointer_field = ((size_t)pkt->data_bytes[0]) + 1;
         } else {
             pointer_field = 1;
         }
+
+        // parse some of the table info so that we can find the DataContext
+        // assoicated with this table
+        const uint8_t *ptr = &pkt->data_bytes[pointer_field];
+        uint8_t table_id = *ptr;
+        uint16_t table_ext = 0;
+        uint8_t version = 0;
+        if(ptr[1] & 0x80) {
+            table_ext = parse_uint16(*((uint16_t*)&ptr[3]));
+            version = (ptr[5] & 0x3E) >> 1;
+        }
+        // set the DataContext for this table as active
+        res = get_data_context(ctx,
+                               table_id,
+                               table_ext,
+                               version,
+                               &ctx->buffers.active);
+        if(res != TSD_OK) {
+            return res;
+        }
+
     } else {
-        // if we already don't have any data in our buffer this must be old
-        // table data
-        if(dataCtx->write == dataCtx->buffer) {
+        // if we don't already have an active buffer this must be old table data
+        // that we aren't prepared to parse
+        if(ctx->buffers.active == NULL) {
             return TSD_INCOMPLETE_TABLE;
         }
     }
 
+    DataContext *dataCtx = ctx->buffers.active;
     const uint8_t *write_pos = pkt->data_bytes + pointer_field;
     size_t write_size = pkt->data_bytes_length - pointer_field;
 
@@ -264,7 +329,7 @@ TSCode parse_table(TSDemuxContext *ctx,
     }
 
     // has the table completed yet? We'll need enough data to see the section
-    // length to figure that one.
+    // length to figure that out.
     uint8_t *ptr = dataCtx->buffer;
     int section_count = 0;
 
@@ -282,10 +347,12 @@ TSCode parse_table(TSDemuxContext *ctx,
 
             if(!table->sections) return TSD_OUT_OF_MEMORY;
 
-            return parse_table_sections(ctx,
-                                        dataCtx->buffer,
-                                        dataCtx->write - dataCtx->buffer,
-                                        table);
+            // parse the table sections
+            res = parse_table_sections(ctx,
+                                       dataCtx->buffer,
+                                       dataCtx->write - dataCtx->buffer,
+                                       table);
+            return res;
         }
     }
 
@@ -640,22 +707,23 @@ TSCode data_context_reset(TSDemuxContext *ctx, DataContext *dataCtx)
 }
 
 TSCode extract_table_data(TSDemuxContext *ctx,
-                          DataContext *data,
                           TSPacket *hdr,
                           Table *table,
                           uint8_t **mem,
                           size_t *size)
 {
     memset(table, 0, sizeof(Table));
-    TSCode res = parse_table(ctx, data, hdr, table);
+    TSCode res = parse_table(ctx, hdr, table);
+    DataContext *data = ctx->buffers.active;
 
     if(res != TSD_OK && res != TSD_INCOMPLETE_TABLE) {
         data_context_reset(ctx, data);
+        ctx->buffers.active = NULL;
         return res;
     }
 
     // the could be incomplete at this point, so continue parsing
-    if(res == TSD_INCOMPLETE_TABLE || data->size == 0) {
+    if(res == TSD_INCOMPLETE_TABLE || (data && data->size == 0)) {
         return TSD_INCOMPLETE_TABLE;
     }
 
@@ -665,6 +733,7 @@ TSCode extract_table_data(TSDemuxContext *ctx,
     void *block = ctx->malloc(block_size);
     if(!block) {
         data_context_reset(ctx, data);
+        ctx->buffers.active = NULL;
         return TSD_OUT_OF_MEMORY;
     }
 
@@ -696,7 +765,6 @@ TSCode demux_pat(TSDemuxContext *ctx, TSPacket *hdr)
     size_t written = 0;
     Table table;
     TSCode res = extract_table_data(ctx,
-                                    &ctx->pat.data,
                                     hdr,
                                     &table,
                                     &block,
@@ -724,27 +792,21 @@ TSCode demux_pat(TSDemuxContext *ctx, TSPacket *hdr)
     PATData *pat = &ctx->pat.value;
     memset(pat, 0, sizeof(PATData));
     res = parse_pat(ctx, block, written, pat);
+
     if(TSD_OK == res) {
         ctx->pat.valid = 1;
         // create PMT parsers for each of the Programs
         size_t pat_len = ctx->pat.value.length;
         if(ctx->pmt.capacity < pat_len) {
             // free the existing data
-            if(ctx->pmt.data) {
-                ctx->free(ctx->pmt.data);
+            if(ctx->pmt.values) {
                 ctx->free(ctx->pmt.values);
             }
-            // allocate new arrays
+            // allocate new array
             if(pat_len > 0) {
-                ctx->pmt.data = (DataContext*) ctx->calloc(pat_len, sizeof(DataContext));
-                if(!ctx->pmt.data) {
-                    ctx->free(block);
-                    return TSD_OUT_OF_MEMORY;
-                }
                 ctx->pmt.values = (PMTData*) ctx->calloc(pat_len, sizeof(PMTData));
                 if(!ctx->pmt.values) {
                     ctx->free(block);
-                    ctx->free(ctx->pmt.data);
                     return TSD_OUT_OF_MEMORY;
                 }
             }
@@ -764,7 +826,6 @@ TSCode demux_pat(TSDemuxContext *ctx, TSPacket *hdr)
 
     // cleanup
     ctx->free(block);
-    data_context_reset(ctx, &ctx->pat.data);
 
     return TSD_OK;
 }
@@ -775,7 +836,6 @@ TSCode demux_pmt(TSDemuxContext *ctx, TSPacket *hdr, size_t pmt_idx)
     size_t written = 0;
     Table table;
     TSCode res = extract_table_data(ctx,
-                                    &ctx->pmt.data[pmt_idx],
                                     hdr,
                                     &table,
                                     &block,
@@ -795,6 +855,25 @@ TSCode demux_pmt(TSDemuxContext *ctx, TSPacket *hdr, size_t pmt_idx)
     ctx->free(block);
 
     return res;
+}
+
+TSCode demux_descriptors(TSDemuxContext *ctx, TSPacket *hdr)
+{
+    uint8_t *block = NULL;
+    size_t written = 0;
+    Table table;
+    TSCode res = extract_table_data(ctx,
+                                    hdr,
+                                    &table,
+                                    &block,
+                                    &written);
+    if(res != TSD_OK) {
+        return res;
+    }
+
+    // TODO: call the callback with the descriptors and Table data
+
+    return TSD_OK;
 }
 
 size_t demux(TSDemuxContext *ctx,
@@ -841,6 +920,8 @@ size_t demux(TSDemuxContext *ctx,
             if(res != TSD_OK && res != TSD_INCOMPLETE_TABLE) {
                 return res;
             }
+        } else if(hdr.pid == PID_CAT || hdr.pid == PID_TSDT) {
+            // TODO: res =
         } else if (hdr.pid > PID_RESERVED_NON_ATSC &&
                    hdr.pid <= PID_GENERAL_PURPOSE) {
             // check to see if this PID is a PMT
@@ -863,7 +944,17 @@ size_t demux(TSDemuxContext *ctx,
         }
     }
 
-    data_context_destroy(ctx, &ctx->pat.data);
+    // cleaup all the buffers if there isn't an active one
+    if(ctx->buffers.active == NULL) {
+        size_t len = ctx->buffers.length;
+        size_t i;
+        for(i=0; i<len; ++i) {
+            data_context_destroy(ctx, &ctx->buffers.pool[i]);
+        }
+        ctx->free(ctx->buffers.pool);
+        ctx->buffers.pool = NULL;
+        ctx->buffers.length = 0;
+    }
 
     return size - remaining;
 }

@@ -277,6 +277,7 @@ typedef struct DataContext {
     uint8_t *write;
     uint8_t *end;
     size_t size;
+    uint32_t id;
 } DataContext;
 
 /**
@@ -516,23 +517,28 @@ typedef struct TSDemuxContext {
     tsd_calloc calloc;
     tsd_free free;
 
-    /** On Event Callback.
+    /**
+     * On Event Callback.
      * User specified event Callback.
      */
     tsd_on_event event_cb;
 
     struct {
-        DataContext data;
         PATData value;
         int valid;
     } pat;
 
     struct {
-        DataContext *data;
         PMTData *values;
         size_t length;
         size_t capacity;
     } pmt;
+
+    struct {
+        DataContext *active;
+        DataContext *pool;
+        size_t length;
+    } buffers;
 
 } TSDemuxContext;
 
@@ -603,8 +609,6 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
  * needs to be parsed once the generic table has been parsed.
  * This function supports both short and long form tables.
  * @param ctx The context being used to demux.
- * @param dataCtx This provided a context for the table if it extends
- *                across multiple packets.
  * @param pkt The packet to parse.
  * @param table Where to store the table output.
  * @return TSD_OK will be returned on successful parsing of a table
@@ -615,7 +619,6 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
  */
 
 TSCode parse_table(TSDemuxContext *ctx,
-                   DataContext *dataCtx,
                    TSPacket *pkt,
                    Table *table);
 
@@ -691,7 +694,6 @@ TSCode parse_pes(TSDemuxContext *ctx,
  * Parses packets that make up a table and Extracts the data into a contiguous
  * memory buffer.
  * @param ctx The context being used to demux.
- * @param data The DataContext containing the raw Table information.
  * @param hdr The next packet to parse
  * @param table A pointer to a Table Structure that will be populated with the
  *              table section information.
@@ -703,7 +705,6 @@ TSCode parse_pes(TSDemuxContext *ctx,
  *         Any other response must be treated as an error.
  */
 TSCode extract_table_data(TSDemuxContext *ctx,
-                          DataContext *data,
                           TSPacket *hdr,
                           Table *table,
                           uint8_t **mem,

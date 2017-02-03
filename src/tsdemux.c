@@ -615,25 +615,26 @@ TSCode parse_pes(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
-TSCode parse_cat(TSDemuxContext *ctx,
-                 const uint8_t *data,
-                 size_t size,
-                 CATData* cat)
+TSCode parse_descriptors(TSDemuxContext *ctx,
+                         const uint8_t *data,
+                         size_t size,
+                         DescriptorData *descriptorData)
 {
 
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
     if(data == NULL)                return TSD_INVALID_DATA;
     if(size < 2)                    return TSD_INVALID_DATA_SIZE;
-    if(cat == NULL)                 return TSD_INVALID_ARGUMENT;
+    if(descriptorData == NULL)      return TSD_INVALID_ARGUMENT;
 
     size_t count = descriptor_count(data, size);
     if(count == 0) {
-        cat->descriptors = NULL;
-        cat->descriptors_length = 0;
+        descriptorData->descriptors = NULL;
+        descriptorData->descriptors_length = 0;
     } else {
-        cat->descriptors = (Descriptor*) ctx->calloc(count, sizeof(Descriptor));
-        if(!cat->descriptors) return TSD_OUT_OF_MEMORY;
-        cat->descriptors_length = count;
+        descriptorData->descriptors = (Descriptor*) ctx->calloc(count,
+                                      sizeof(Descriptor));
+        if(!descriptorData->descriptors) return TSD_OUT_OF_MEMORY;
+        descriptorData->descriptors_length = count;
     }
 
     return TSD_OK;
@@ -871,7 +872,28 @@ TSCode demux_descriptors(TSDemuxContext *ctx, TSPacket *hdr)
         return res;
     }
 
-    // TODO: call the callback with the descriptors and Table data
+    // parse all the outter descriptors
+    DescriptorData descriptorData;
+    res = parse_descriptors(ctx, block, written, &descriptorData);
+
+    // call the callback with the descriptors and Table data
+    if(TSD_OK == res) {
+        if(ctx->event_cb) {
+            EventId event;
+            switch(hdr->pid) {
+            case PID_CAT:
+                event = TSD_EVENT_CAT;
+                break;
+            case PID_TSDT:
+                event = TSD_EVENT_TSDT;
+                break;
+            default:
+                event = TSD_EVENT_TSDT;
+                break;
+            }
+            ctx->event_cb(ctx, event, (void*)&descriptorData);
+        }
+    }
 
     return TSD_OK;
 }
@@ -921,7 +943,10 @@ size_t demux(TSDemuxContext *ctx,
                 return res;
             }
         } else if(hdr.pid == PID_CAT || hdr.pid == PID_TSDT) {
-            // TODO: res =
+            res = demux_descriptors(ctx, &hdr);
+            if(res != TSD_OK && res != TSD_INCOMPLETE_TABLE) {
+                return res;
+            }
         } else if (hdr.pid > PID_RESERVED_NON_ATSC &&
                    hdr.pid <= PID_GENERAL_PURPOSE) {
             // check to see if this PID is a PMT

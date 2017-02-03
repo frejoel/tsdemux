@@ -489,13 +489,16 @@ typedef struct PMTData {
 } PMTData;
 
 /**
- * CAT Data.
- * CAT Data extracted from CAT Table Sections.
+ * Descritor Data.
+ * Descriptor Data extracted from Table Sections.
  */
-typedef struct CATData {
+typedef struct DescriptorData {
     Descriptor *descriptors;
     size_t descriptors_length;
-} CATData;
+} DescriptorData;
+
+typedef DescriptorData CATData;
+typedef DescriptorData TSDTData;
 
 /**
  * Table Data.
@@ -655,19 +658,19 @@ TSCode parse_pat(TSDemuxContext *ctx,
                  PATData* pat);
 
 /**
- * Parses CAT data from a Table.
+ * Parses Descriptor data from a Table.
  * The table data is the data supplied by a Table object once a
  * generic table has been processed using parse_table.
  * @param ctx The context being used to demux.
  * @param data The table data to parse into CAT values.
  * @param size The size of the table data.
- * @param cat The CATData that will store the result.
+ * @param descriptorData The DescriptorData that will store the result.
  * @return Returns TSD_OK on success.
  */
-TSCode parse_cat(TSDemuxContext *ctx,
-                 const uint8_t *data,
-                 size_t size,
-                 CATData* cat);
+TSCode parse_descriptors(TSDemuxContext *ctx,
+                         const uint8_t *data,
+                         size_t size,
+                         DescriptorData *descriptorData);
 
 /**
  * Parses PMT data from a Table.

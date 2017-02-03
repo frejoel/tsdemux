@@ -27,15 +27,15 @@ void test_parse_cat_input(void)
         0xAB, 0x02, 0xE6, 0x69,
     };
 
-    res = parse_cat(NULL, NULL, 0, NULL);
+    res = parse_descriptors(NULL, NULL, 0, NULL);
     test_assert_equal(TSD_INVALID_CONTEXT, res, "invalid context");
-    res = parse_cat(&ctx, NULL, 0, NULL);
+    res = parse_descriptors(&ctx, NULL, 0, NULL);
     test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
-    res = parse_cat(&ctx, data, 0, NULL);
+    res = parse_descriptors(&ctx, data, 0, NULL);
     test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid size");
-    res = parse_cat(&ctx, data, sizeof(data), NULL);
+    res = parse_descriptors(&ctx, data, sizeof(data), NULL);
     test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
-    res = parse_cat(&ctx, data, sizeof(data), &cat);
+    res = parse_descriptors(&ctx, data, sizeof(data), &cat);
     test_assert_equal(TSD_OK, res, "successful parse");
     test_assert_equal(1, cat.descriptors_length, "descriptor length");
     test_assert(cat.descriptors != NULL, "valid descriptors");
@@ -59,7 +59,7 @@ void test_parse_cat_data(void)
         0x98, 0x04, 0xE0, 0x01, 0xFF, 0xFC,
     };
 
-    res = parse_cat(&ctx, data, sizeof(data), &cat);
+    res = parse_descriptors(&ctx, data, sizeof(data), &cat);
     test_assert_equal(TSD_OK, res, "successful parse");
     test_assert_equal(2, cat.descriptors_length, "descriptor length");
     test_assert(cat.descriptors != NULL, "valid descriptors");

@@ -52,7 +52,7 @@ void test_demux(void)
 
     set_event_callback(&ctx, event_cb);
 
-    FILE *fp = fopen("test/data/03_f.ts", "rb");
+    FILE *fp = fopen("test/data/00_f.ts", "rb");
     char buffer[1880];
 
     TSPacket hdr;

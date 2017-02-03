@@ -983,3 +983,8 @@ size_t demux(TSDemuxContext *ctx,
 
     return size - remaining;
 }
+
+TSCode register_pid(TSDemuxContext *ctx, uint16_t pid)
+{
+    return TSD_OK;
+}

@@ -28,10 +28,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define TSD_SYNC_BYTE                         (0x47)
-#define TSD_MESSAGE_LEN                       (128)
-#define TSD_TSPACKET_SIZE                     (188)
-#define TSD_DEFAULT_DATA_CONTEXT_SIZE         (256)
+#define TSD_SYNC_BYTE                           (0x47)
+#define TSD_MESSAGE_LEN                         (128)
+#define TSD_TSPACKET_SIZE                       (188)
+#define TSD_DEFAULT_DATA_CONTEXT_SIZE           (256)
+#define MAX_PID_REGISTRATIONS                   (16)
 
 /**
  * @file
@@ -521,22 +522,38 @@ typedef struct TSDemuxContext {
     tsd_free free;
 
     /**
+     * Registerd PIDs.
+     * The PIDs registered for demuxing.
+     */
+    uint16_t registered_pids[MAX_PID_REGISTRATIONS];
+
+    /**
      * On Event Callback.
      * User specified event Callback.
      */
     tsd_on_event event_cb;
 
+    /**
+     * PAT Data.
+     */
     struct {
         PATData value;
         int valid;
     } pat;
 
+    /**
+     * PMT Data.
+     */
     struct {
         PMTData *values;
         size_t length;
         size_t capacity;
     } pmt;
 
+    /**
+     * Data Context Buffers.
+     * Tempoary pool of buffers used during demuxing.
+     */
     struct {
         DataContext *active;
         DataContext *pool;
@@ -762,5 +779,15 @@ TSCode data_context_write(TSDemuxContext *ctx, DataContext *dataCtx, const uint8
  * @return TSD_OK on success.
  */
 TSCode data_context_reset(TSDemuxContext *ctx, DataContext *dataCtx);
+
+/**
+ * Register a PID for demuxing.
+ * When a PID is registered the user supplied callback will be called with the
+ * data on that PID as it is encountered durinf the demux process.
+ * @param ctx The context being used to demux.
+ * @param pid The PID being registered.
+ * @return TSD_OK on success.
+ */
+TSCode register_pid(TSDemuxContext *ctx, uint16_t pid);
 
 #endif // TS_DEMUX_H

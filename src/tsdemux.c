@@ -963,6 +963,7 @@ size_t demux(TSDemuxContext *ctx,
         } else if (hdr.pid > PID_RESERVED_NON_ATSC &&
                    hdr.pid <= PID_GENERAL_PURPOSE) {
             // check to see if this PID is a PMT
+            int parsed = 0;
             if(ctx->pat.valid) {
                 size_t len = ctx->pat.value.length;
                 uint16_t *pids = ctx->pat.value.pid;
@@ -970,12 +971,26 @@ size_t demux(TSDemuxContext *ctx,
 
                 for(i=0; i<len; ++i) {
                     if(pids[i] == hdr.pid) {
+                        if(parsed != 1) parsed = 1;
                         res = demux_pmt(ctx, &hdr, i);
                         if(res == TSD_INCOMPLETE_TABLE) {
                             continue;
                         } else if(res != TSD_OK) {
                             return res;
                         }
+                    }
+                }
+            }
+
+            // if this isn't a PMT PID, check to usee if the user has registerd it
+            if(parsed == 0) {
+                size_t i;
+                for(i=0; i < ctx->registered_pids_length; ++i) {
+                    if(hdr.pid == ctx->registered_pids[i]) {
+                        PIDData data;
+                        data.data = (uint8_t*)hdr.data_bytes;
+                        data.size = hdr.data_bytes_length;
+                        ctx->event_cb(ctx, TSD_EVENT_PID, (void *)&data);
                     }
                 }
             }

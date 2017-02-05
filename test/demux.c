@@ -53,6 +53,11 @@ void event_cb(TSDemuxContext *ctx, EventId event_id, void *data)
             }
         }
     }
+
+    if(event_id == TSD_EVENT_PID) {
+        PIDData *pid = (PIDData*) data;
+        printf("PID, data size: %d\n", pid->size);
+    }
 }
 
 void test_demux(void)
@@ -71,6 +76,8 @@ void test_demux(void)
     int count = fread(buffer, 1, 1880, fp);
     TSCode res;
     size_t parsed = 0;
+
+    register_pid(&ctx, 0x01E1);
 
     while(count > 0) {
         parsed = demux(&ctx, buffer, count, &res);

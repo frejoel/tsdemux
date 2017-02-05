@@ -269,6 +269,8 @@ typedef enum EventId {
     TSD_EVENT_TSDT                           = 0x0008,
     /// Unsupported Table
     TSD_EVENT_TABLE                          = 0x0010,
+    // User Registered PID data
+    TSD_EVENT_PID                            = 0x0020,
 } EventId;
 
 /**
@@ -503,6 +505,15 @@ typedef struct DescriptorData {
 
 typedef DescriptorData CATData;
 typedef DescriptorData TSDTData;
+
+/**
+ * PID Data.
+ * Data carried within a specific PID.
+ */
+typedef struct PIDData {
+    uint8_t *data;
+    size_t size;
+} PIDData;
 
 /**
  * Table Data.

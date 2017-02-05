@@ -16,7 +16,7 @@ int main(char **argc, int argv)
 void test_register(void)
 {
     test_start("register pid");
-    
+
     TSDemuxContext ctx;
     set_default_context(&ctx);
 
@@ -50,8 +50,17 @@ void test_deregister(void)
 
     TSCode res;
 
-    res = register_pid(NULL, 0x100);
-    test_assert_equal(res, TSD_INVALID_CONTEXT, "invlaid context");
+    res = deregister_pid(NULL, 0x100);
+    test_assert_equal(res, TSD_INVALID_CONTEXT, "invalid context");
+    res = deregister_pid(&ctx, 0x100);
+    test_assert_equal(res, TSD_PID_NOT_FOUND, "pid not found");
+    res = register_pid(&ctx, 0x200);
+    res = deregister_pid(&ctx, 0x200);
+    test_assert_equal(res, TSD_OK, "remove pid");
+    res = register_pid(&ctx, 0x200);
+    test_assert_equal(res, TSD_OK, "register same PID");
+    res = deregister_pid(&ctx, 0x200);
+    test_assert_equal(res, TSD_OK, "remove same PID again");
 
     test_end();
 }

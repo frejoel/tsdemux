@@ -95,6 +95,9 @@ typedef enum TSCode {
     TSD_INCOMPLETE_TABLE                      = 0x0008,
     TSD_NOT_A_TABLE_PACKET                    = 0x0009,
     TSD_PARSE_ERROR                           = 0x000A,
+    TSD_PID_ALREADY_REGISTERED                = 0x000B,
+    TSD_MAX_PID_REGISTRATIONS_REACHED         = 0x000C,
+    TSD_PID_NOT_FOUND                         = 0x000D,
 } TSCode;
 
 /**
@@ -521,11 +524,15 @@ typedef struct TSDemuxContext {
     tsd_calloc calloc;
     tsd_free free;
 
+    uint16_t pids[1024];
+    size_t pids_length;
+
     /**
      * Registerd PIDs.
      * The PIDs registered for demuxing.
      */
     uint16_t registered_pids[MAX_PID_REGISTRATIONS];
+    size_t registered_pids_length;
 
     /**
      * On Event Callback.
@@ -789,5 +796,14 @@ TSCode data_context_reset(TSDemuxContext *ctx, DataContext *dataCtx);
  * @return TSD_OK on success.
  */
 TSCode register_pid(TSDemuxContext *ctx, uint16_t pid);
+
+/**
+ * Deregisters a PID for demuxing.
+ * Removes a PID from the PID demuxing register.
+ * @param ctx The context being used to demux.
+ * @param pid The PID being deregistered.
+ * @return TSD_OK on success.
+ */
+TSCode deregister_pid(TSDemuxContext *ctx, uint16_t pid);
 
 #endif // TS_DEMUX_H

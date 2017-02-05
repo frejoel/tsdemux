@@ -1,5 +1,5 @@
 .*
 *.orig
-test/data/99.ts
+test/data/*
 bin/*
 *.o

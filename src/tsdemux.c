@@ -937,6 +937,19 @@ size_t demux(TSDemuxContext *ctx,
             continue;
         }
 
+        size_t i;
+        int found = 0;
+        for(i=0; i<ctx->pids_length; ++i) {
+            if(ctx->pids[i] == hdr.pid) {
+                found = 1;
+                break;
+            }
+        }
+        if(found == 0 && ctx->pids_length < 1024) {
+            ctx->pids[ctx->pids_length] = hdr.pid;
+            ctx->pids_length++;
+        }
+
         if(hdr.pid == PID_PAT) {
             res = demux_pat(ctx, &hdr);
             if(res != TSD_OK && res != TSD_INCOMPLETE_TABLE) {
@@ -986,5 +999,44 @@ size_t demux(TSDemuxContext *ctx,
 
 TSCode register_pid(TSDemuxContext *ctx, uint16_t pid)
 {
+    if(ctx == NULL)     return TSD_INVALID_CONTEXT;
+
+    // make sure the pid isn't already registered
+    size_t i;
+    for(i=0; i<ctx->registered_pids_length; ++i) {
+        if(ctx->registered_pids[i] == pid) {
+            return TSD_PID_ALREADY_REGISTERED;
+        }
+    }
+
+    // make sure we have room to register a new pid
+    if(ctx->registered_pids_length == MAX_PID_REGISTRATIONS) {
+        return TSD_MAX_PID_REGISTRATIONS_REACHED;
+    }
+
+    // register the new pid
+    ctx->registered_pids[ctx->registered_pids_length] = pid;
+    ctx->registered_pids_length++;
+
     return TSD_OK;
+}
+
+TSCode deregister_pid(TSDemuxContext *ctx, uint16_t pid)
+{
+    if(ctx == NULL)     return TSD_INVALID_CONTEXT;
+
+    // find the pid in the registration list
+    size_t i;
+    for(i=0; i<ctx->registered_pids_length; ++i) {
+        if(ctx->registered_pids[i] == pid) {
+            // remove this pid by shifting the pids in front of it down
+            size_t j;
+            for(j=i+1; j<ctx->registered_pids_length; ++j) {
+                ctx->registered_pids[j-1] = ctx->registered_pids[j];
+            }
+            ctx->registered_pids_length--;
+            return TSD_OK;
+        }
+    }
+    return TSD_PID_NOT_FOUND;
 }

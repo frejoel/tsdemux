@@ -55,8 +55,8 @@ void event_cb(TSDemuxContext *ctx, EventId event_id, void *data)
     }
 
     if(event_id == TSD_EVENT_PID) {
-        PIDData *pid = (PIDData*) data;
-        printf("PID, data size: %d\n", pid->size);
+        PESPacket *pes = (PESPacket*) data;
+        printf("PES stream id: %04X\n", pes->stream_id);
     }
 }
 

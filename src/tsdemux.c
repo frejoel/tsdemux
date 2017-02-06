@@ -205,9 +205,9 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
             if(adap->adaptation_field_extension.flags & AFEF_SEAMLESS_SPLCE_FLAG) {
                 if(ptr+5 > end) return TSD_INVALID_DATA_SIZE;
                 adap->adaptation_field_extension.splice_type = ((*ptr) >> 4) & 0x0F;
-                uint32_t au1 = (uint64_t) (((*ptr) >> 1) & 0x07);
-                uint32_t au2 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+1))) >> 1) & 0x7FFF);
-                uint32_t au3 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+3))) >> 1) & 0x7FFF);
+                uint64_t au1 = (uint64_t) (((*ptr) >> 1) & 0x07);
+                uint64_t au2 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+1))) >> 1) & 0x7FFF);
+                uint64_t au3 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+3))) >> 1) & 0x7FFF);
                 adap->adaptation_field_extension.dts_next_au = (au1 << 30) | (au2 << 15) | au3;
             }
         }
@@ -603,14 +603,175 @@ TSCode parse_pes(TSDemuxContext *ctx,
     if(size < 6)                   return TSD_INVALID_DATA_SIZE;
     if(pes == NULL)                 return TSD_INVALID_ARGUMENT;
 
+    memset(pes, 0, sizeof(PESPacket));
+
     const uint8_t *ptr = (uint8_t*)data;
     const uint8_t *end = &ptr[size];
+    ptr++; // TODO: WTF???
 
-    if(ptr+1 > end) return TSD_INVALID_DATA_SIZE;
     uint32_t value = parse_uint32(*((uint32_t*)ptr));
-    if((value >> 8) != 0x01) return TSD_INVALID_START_CODE_PREFIX;
+    pes->start_code_prefix = (value >> 8);
+    if(pes->start_code_prefix != 0x01) return TSD_INVALID_START_CODE_PREFIX;
 
     pes->stream_id = (uint8_t)(value & 0x000000FF);
+    ptr = &ptr[4];
+    pes->packet_length = parse_uint16(*((uint16_t*)ptr));
+    ptr = &ptr[2];
+
+    if(pes->stream_id == PSID_PADDING_STREAM) {
+        // Padding, we don't need to do anything
+    } else if(pes->stream_id == PSID_PROGRAM_STREAM_MAP ||
+              pes->stream_id == PSID_PRIV_STREAM_2 ||
+              pes->stream_id == PSID_ECM ||
+              pes->stream_id == PSID_EMM ||
+              pes->stream_id == PSID_STREAM_DIRECTORY ||
+              pes->stream_id == PSID_DSMCC ||
+              pes->stream_id == PSID_H2221_TYPE_E) {
+        pes->data_bytes = ptr;
+    } else {
+        uint8_t value = *ptr;
+        ptr++;
+        pes->scrambling_control = (value & 0x30) >> 6;
+        pes->flags = ((value & 0x0F) << 8) | *ptr;
+        ptr++;
+        pes->header_data_length = *ptr;
+        ptr++;
+        if(pes->flags & PPF_PTS_FLAG) {
+            uint64_t pts1 = (uint64_t) (((*ptr) >> 1) & 0x07);
+            uint64_t pts2 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+1))) >> 1) & 0x7FFF);
+            uint64_t pts3 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+3))) >> 1) & 0x7FFF);
+            pes->pts = (pts1 << 30) | (pts2 << 15) | pts3;
+            ptr = &ptr[5];
+        }
+        if(pes->flags & PPF_DTS_FLAG) {
+            uint64_t dts1 = (uint64_t) (((*ptr) >> 1) & 0x07);
+            uint64_t dts2 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+1))) >> 1) & 0x7FFF);
+            uint64_t dts3 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+3))) >> 1) & 0x7FFF);
+            pes->dts = (dts1 << 30) | (dts2 << 15) | dts3;
+            ptr = &ptr[5];
+        }
+        if(pes->flags & PPF_ESCR_FLAG) {
+            uint64_t value = parse_uint64(*((uint64_t*)ptr));
+            pes->escr = ((value >> 27) & 0x7FFFLL) |
+                        (((value >> 43) & 0x7FFFLL) << 15) |
+                        (((value >> 59) & 0x0007LL) << 30);
+            pes->escr_extension = (uint16_t)((value >> 17) & 0x01FFLL);
+            ptr = &ptr[6];
+        }
+        if(pes->flags & PPF_ES_RATE_FLAG) {
+            uint32_t value = parse_uint32(*((uint32_t*)ptr));
+            pes->es_rate = (value >> 9) & 0x003FFFFF;
+            ptr = &ptr[3];
+        }
+        if(pes->flags & PPF_DSM_TRICK_MODE_FLAG) {
+            pes->trick_mode.control = ((*ptr) >> 5) & 0x07;
+            if(pes->trick_mode.control == TMC_FAST_FORWARD ||
+               pes->trick_mode.control == TMC_FAST_REVERSE) {
+                pes->trick_mode.field_id = ((*ptr) >> 3) & 0x03;
+                pes->trick_mode.intra_slice_refresh = ((*ptr) >> 2) & 0x01;
+                pes->trick_mode.frequency_truncation = (*ptr) & 0x03;
+            } else if(pes->trick_mode.control == TMC_SLOW_MOTION ||
+                      pes->trick_mode.control == TMC_SLOW_REVERSE) {
+                pes->trick_mode.rep_cntrl = (*ptr) & 0x1F;
+            } else if(pes->trick_mode.control == TMC_FREEZE_FRAME) {
+                pes->trick_mode.field_id = ((*ptr) >> 3) & 0x03;
+            }
+            ptr++;
+        }
+        if(pes->flags & PPF_ADDITIONAL_COPY_INFO_FLAG) {
+            pes->additional_copy_info = (*ptr) & 0x7F;
+            ptr++;
+        }
+        if(pes->flags & PPF_PES_CRC_FLAG) {
+            pes->previous_pes_packet_crc = parse_uint16(*((uint16_t*)ptr));
+            ptr = &ptr[2];
+        }
+        if(pes->flags & PPF_PES_EXTENSION_FLAG) {
+            pes->extension.flags = *ptr;
+            ptr++;
+            if(pes->extension.flags & PEF_PES_PRIVATE_DATA_FLAG) {
+                int i=0;
+                for(i=0; i<16; ++i) {
+                    pes->extension.pes_private_data[i] = ptr[i];
+                }
+                ptr = &ptr[16]; // 128 bits
+            }
+            if(pes->extension.flags & PEF_PACK_HEADER_FIELD_FLAG) {
+                PackHeader *pheader = &pes->extension.pack_header;
+                pheader->length = *ptr;
+                ptr++;
+                pheader->pack_start_code = parse_uint32(*((uint32_t*)ptr));
+                ptr = &ptr[4];
+                uint64_t value = parse_uint64(*((uint64_t*)ptr));
+                pheader->system_clock_reference_base =
+                    ((value >> 27) & 0x7FFFLL) |
+                    (((value >> 43) & 0x7FFFLL) << 15) |
+                    (((value >> 59) & 0x0007LL) << 30);
+                pheader->system_clock_reference_extension =
+                    (uint16_t)((value >> 17) & 0x01FFLL);
+                ptr = &ptr[6];
+                pheader->program_mux_rate = parse_uint32(*((uint32_t*)ptr)) >> 10;
+                ptr = &ptr[3];
+                pheader->stuffing_length = (*ptr) & 0x07;
+                // get past stuffing
+                ptr = &ptr[1 + pheader->stuffing_length];
+                // System Header
+                SystemHeader *sysh = &pheader->system_header;
+                sysh->start_code = parse_uint32(*((uint32_t*)ptr));
+                ptr = &ptr[4];
+                sysh->length = parse_uint16(*((uint16_t*)ptr));
+                ptr = &ptr[2];
+                sysh->rate_bound = (parse_uint32(*((uint32_t*)ptr)) >> 10) & 0x003FFFFF;
+                ptr = &ptr[3];
+                sysh->audio_bound = (*ptr) >> 2;
+                sysh->flags = parse_uint32(*((uint32_t*)ptr)) & 0x03E08000;
+                ptr++;
+                sysh->video_bound = (*ptr) & 0x1F;
+                ptr = &ptr[2];
+                sysh->stream_count = (sysh->length - 6) / 3;
+                if(sysh->stream_count > 0) {
+                    sysh->streams = (SystemHeaderStream*) ctx->calloc(sysh->stream_count, sizeof(SystemHeaderStream));
+                    if(!sysh->streams) return TSD_OUT_OF_MEMORY;
+                    size_t i;
+                    size_t used = 0;
+                    for(i=0; i<sysh->stream_count; ++i) {
+                        // make sure the first bit is set in the stream id
+                        if((*ptr) & 0x80) {
+                            used++;
+                            SystemHeaderStream *stream = &sysh->streams[i];
+                            stream->stream_id = *ptr;
+                            ptr++;
+                            stream->pstd_buffer_bound_scale = ((*ptr) >> 5) & 0x01;
+                            stream->pstd_buffer_size_bound = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
+                            ptr = &ptr[2];
+                        }
+                    }
+                    sysh->stream_count = used;
+                }
+            }
+            if(pes->extension.flags & PEF_PROGRAM_PACKET_SEQUENCE_COUNTER_FLAG) {
+                pes->extension.program_packet_sequence_counter = (*ptr) & 0x7F;
+                ptr++;
+                pes->extension.mpeg1_mpeg2_identifier = ((*ptr) >> 6) & 0x01;
+                pes->extension.original_stuff_length = (*ptr) & 0x3F;
+                ptr++;
+            }
+            if(pes->extension.flags & PEF_PSTD_BUFFER_FLAG) {
+                pes->extension.pstd_buffer_scale = ((*ptr) >> 5) & 0x01;
+                pes->extension.pstd_buffer_size = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
+                ptr = &ptr[2];
+            }
+            if(pes->extension.flags & PEF_PES_EXTENSION_FLAG_2) {
+                pes->extension.pes_extension_field_length = (*ptr) & 0x7F;
+                ptr = &ptr[1 + pes->extension.pes_extension_field_length];
+            }
+        }
+        // get past any stuffing
+        while(*ptr == 0xFF) {
+            ptr++;
+        }
+        pes->data_bytes = ptr;
+    }
 
     return TSD_OK;
 }
@@ -990,7 +1151,10 @@ size_t demux(TSDemuxContext *ctx,
                         PIDData data;
                         data.data = (uint8_t*)hdr.data_bytes;
                         data.size = hdr.data_bytes_length;
-                        ctx->event_cb(ctx, TSD_EVENT_PID, (void *)&data);
+                        PESPacket pes;
+                        res = parse_pes(ctx, hdr.data_bytes, hdr.data_bytes_length, &pes);
+                        if(res != TSD_OK) printf("bad PES parse\n");
+                        ctx->event_cb(ctx, TSD_EVENT_PID, (void *)&pes);
                     }
                 }
             }

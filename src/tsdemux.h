@@ -189,6 +189,34 @@ typedef enum AdaptationFieldExtensionFlags {
 } AdaptationFieldExtensionFlags;
 
 /**
+ * PES Stream Id.
+ */
+typedef enum PESStreamId {
+    PSID_PROGRAM_STREAM_MAP                   = 0xBC,
+    PSID_PRIV_STREAM_1                        = 0xBD,
+    PSID_PADDING_STREAM                       = 0xBE,
+    PSID_PRIV_STREAM_2                        = 0xBF,
+    PSID_AUDIO                                = 0xC0,
+    PSID_AUDIO_MASK                           = 0xE0,
+    PSID_VIDEO                                = 0xE0,
+    PSID_VIDEO_MASK                           = 0xF0,
+    PSID_ECM                                  = 0xF0,
+    PSID_EMM                                  = 0xF1,
+    PSID_DSMCC                                = 0xF2,
+    PSID_13522                                = 0xF3,
+    PSID_H2221_TYPE_A                         = 0xF4,
+    PSID_H2221_TYPE_B                         = 0xF5,
+    PSID_H2221_TYPE_C                         = 0xF6,
+    PSID_H2221_TYPE_D                         = 0xF7,
+    PSID_H2221_TYPE_E                         = 0xF8,
+    PSID_ANCILLARY                            = 0xF9,
+    PSID_SL_PACKETIZED                        = 0xFA,
+    PSID_FLEX_MUX                             = 0xFB,
+    PSID_RESERVED                             = 0xFC,
+    PSID_STREAM_DIRECTORY                     = 0xFF,
+} PESStreamId;
+
+/**
  * PES Scrambling Control.
  */
 typedef enum PESScramblingControl {
@@ -202,51 +230,51 @@ typedef enum PESScramblingControl {
  * PES Packaet Flags.
  */
 typedef enum PESPacketFlags {
-    PPF_PES_PRIORITY                          = 0x01,
-    PPF_DATA_ALIGNMENT_INDICATOR              = 0x02,
-    PPF_COPYRIGHT                             = 0x03,
-    PPF_ORIGINAL_OR_COPY                      = 0x04,
-    PPF_PTS_FLAG                              = 0x05,
-    PPF_DTS_FLAG                              = 0x06,
-    PPF_ESCR_FLAG                             = 0x07,
-    PPF_ES_RATE_FLAG                          = 0x08,
-    PPF_DSM_TRICK_MODE_FLAG                   = 0x09,
-    PPF_ADDITIONAL_COPY_INFO_FLAG             = 0x0A,
-    PPF_PES_CRC_FLAG                          = 0x0B,
-    PPF_PES_EXTENSION_FLAG                    = 0x0C,
+    PPF_PES_PRIORITY                          = 0x0800,
+    PPF_DATA_ALIGNMENT_INDICATOR              = 0x0400,
+    PPF_COPYRIGHT                             = 0x0200,
+    PPF_ORIGINAL_OR_COPY                      = 0x0100,
+    PPF_PTS_FLAG                              = 0x0080,
+    PPF_DTS_FLAG                              = 0x0040,
+    PPF_ESCR_FLAG                             = 0x0020,
+    PPF_ES_RATE_FLAG                          = 0x0010,
+    PPF_DSM_TRICK_MODE_FLAG                   = 0x0008,
+    PPF_ADDITIONAL_COPY_INFO_FLAG             = 0x0004,
+    PPF_PES_CRC_FLAG                          = 0x0002,
+    PPF_PES_EXTENSION_FLAG                    = 0x0001,
 } PESPacketFlags;
 
 /**
  * Trick Mode Control.
  */
 typedef enum TrickModeControl {
-    TMC_FAST_FORWARD                          = 0x0000,
-    TMC_SLOW_MOTION                           = 0x0001,
-    TMC_FREEZE_FRAME                          = 0x0010,
-    TMC_FAST_REVERSE                          = 0x0011,
-    TMC_SLOW_REVERSE                          = 0x0100,
+    TMC_FAST_FORWARD                          = 0x00,
+    TMC_SLOW_MOTION                           = 0x01,
+    TMC_FREEZE_FRAME                          = 0x02,
+    TMC_FAST_REVERSE                          = 0x03,
+    TMC_SLOW_REVERSE                          = 0x04,
 } TrickModeControl;
 
 /**
  * PES Extension Flags.
  */
 typedef enum PESExtensionFlags {
-    PEF_PES_PRIVATE_DATA_FLAG                 = 0x01,
-    PEF_PACK_HEADER_FIELD_FLAG                = 0x02,
-    PEF_PROGRAM_PACKET_SEQUENCE_COUNTER_FLAG  = 0x03,
-    PEF_PSTD_BUFFER_FLAG                      = 0x04,
-    PEF_PES_EXTENSION_FLAG_2                  = 0x08,
+    PEF_PES_PRIVATE_DATA_FLAG                 = 0x08,
+    PEF_PACK_HEADER_FIELD_FLAG                = 0x07,
+    PEF_PROGRAM_PACKET_SEQUENCE_COUNTER_FLAG  = 0x06,
+    PEF_PSTD_BUFFER_FLAG                      = 0x05,
+    PEF_PES_EXTENSION_FLAG_2                  = 0x01,
 } PESExtensionFlags;
 
 /**
  * System Header Flags.
  */
 typedef enum SystemHeaderFlags {
-    SHF_FIXED_FLAG                            = 0x01,
-    SHF_CSPS_FLAG                             = 0x02,
-    SHF_SYSTEM_AUDIO_LOCK_FLAG                = 0x04,
-    SHF_SYSTEM_VIDEO_LOCK_FLAG                = 0x08,
-    SHF_PACKET_RATE_RESTICTION_FLAG           = 0x10,
+    SHF_FIXED_FLAG                            = 0x02000000,
+    SHF_CSPS_FLAG                             = 0x01000000,
+    SHF_SYSTEM_AUDIO_LOCK_FLAG                = 0x00800000,
+    SHF_SYSTEM_VIDEO_LOCK_FLAG                = 0x00400000,
+    SHF_PACKET_RATE_RESTICTION_FLAG           = 0x00010000,
 } SystemHeaderFlags;
 
 /**
@@ -342,36 +370,46 @@ typedef struct TSPacket {
  * DSM Trick Mode.
  */
 typedef struct DSMTrickMode {
-    TrickModeControl trick_mode_control;
+    TrickModeControl control;
     uint8_t field_id;
-    int intra_slice_refresh;
+    uint8_t intra_slice_refresh;
     uint8_t frequency_truncation;
     uint8_t rep_cntrl;
 } DSMTrickMode;
 
 /**
+ * System Header Stream.
+ */
+typedef struct SystemHeaderStream {
+    uint8_t stream_id;
+    uint8_t pstd_buffer_bound_scale;
+    uint8_t pstd_buffer_size_bound;
+} SystemHeaderStream;
+
+/**
  * Program Stream System Header.
  */
 typedef struct SystemHeader {
-    uint32_t system_header_start_code;
-    uint16_t header_length;
+    uint32_t start_code;
+    uint16_t length;
     uint32_t rate_bound;
     uint8_t audio_bound;
-    int system_header_flags;
+    int flags;
     uint8_t video_bound;
-    uint8_t stream_id;
-    int pstd_buffer_bound_scale;
-    uint8_t pstd_buffer_size_bound;
+    size_t stream_count;
+    SystemHeaderStream *streams;
 } SystemHeader;
 
 /**
  * Program Stream Pack Header.
  */
 typedef struct PackHeader {
+    uint8_t length;
     uint32_t pack_start_code;
     uint64_t system_clock_reference_base;
     uint16_t system_clock_reference_extension;
     uint32_t program_mux_rate;
+    uint8_t stuffing_length;
     uint32_t system_header_start_code;
     SystemHeader system_header;
 } PackHeader;
@@ -381,19 +419,13 @@ typedef struct PackHeader {
  */
 typedef struct PESExtension {
     int flags;
-    // pes_private_data_flag == '1'
-    uint8_t pes_private_data[16]; // 128 bit
-    // pack_header_field_flag == '1'
-    uint8_t pack_header_length;
+    uint8_t pes_private_data[16]; // 128 bits
     PackHeader pack_header;
-    // program_packet_sequence_counter_flag == '1'
     uint8_t program_packet_sequence_counter;
     int mpeg1_mpeg2_identifier;
     uint8_t original_stuff_length;
-    // P-STD_buffer_flag == '1'
     int pstd_buffer_scale;
     uint16_t pstd_buffer_size;
-    // pes_extension_flag_2 == '1'
     uint8_t pes_extension_field_length;
 } PESExtension;
 
@@ -401,21 +433,22 @@ typedef struct PESExtension {
  * PES Packet.
  */
 typedef struct PESPacket {
-    uint32_t packet_start_code_prefix;
+    uint32_t start_code_prefix;
     uint8_t stream_id;
-    uint16_t pes_packet_length;
-    PESScramblingControl pes_scrambling_control;
+    uint16_t packet_length;
+    PESScramblingControl scrambling_control;
     int flags;
-    uint8_t pes_header_data_length;
+    uint8_t header_data_length;
     uint64_t pts;
     uint64_t dts;
     uint64_t escr;
     uint16_t escr_extension;
     uint32_t es_rate;
-    DSMTrickMode dsm_trick_mode;
+    DSMTrickMode trick_mode;
     uint8_t additional_copy_info;
     uint16_t previous_pes_packet_crc;
-    void *pes_packet_data_byte;
+    PESExtension extension;
+    const uint8_t *data_bytes;
 } PESPacket;
 
 /**
@@ -722,6 +755,14 @@ TSCode parse_pmt(TSDemuxContext *ctx,
                  size_t size,
                  PMTData *pmt);
 
+/**
+ * Parses PES packets.
+ * @param ctx The context being used to demux.
+ * @param data The raw data to parse.
+ * @param size The size of the data.
+ * @param pes The PESPacket that the data will be parsed into.
+ * @return Returns TSD_OK on success.
+ */
 TSCode parse_pes(TSDemuxContext *ctx,
                  const void *data,
                  size_t size,

@@ -24,7 +24,7 @@ void test_input(void)
 
     FILE *fp = fopen("test/data/00.ts", "rb");
     test_assert_null(fp, "open 'test/data/00.ts'");
-    char *buffer[20480]; // 20KB
+    uint8_t buffer[20480]; // 20KB
     size_t len = fread(buffer, 1, 20480, fp);
 
     TSDemuxContext ctx;
@@ -55,7 +55,7 @@ void test_parsing_sync_byte(void)
     test_start("parse packet header - bad sync byte");
 
     // parse a bad packet (bad sync byte)
-    char bad_packet[188];
+    uint8_t bad_packet[188];
     bad_packet[0] = 'H';
     TSDemuxContext ctx;
     TSPacket pkt;
@@ -72,7 +72,7 @@ void test_parsing(void)
     // parse a TS Packet
     FILE *fp = fopen("test/data/00.ts", "rb");
     test_assert_null(fp, "open 'test/data/00.ts'");
-    char buffer[20480]; // 20KB
+    uint8_t buffer[20480]; // 20KB
     size_t len = fread(buffer, 1, 20480, fp);
 
     TSDemuxContext ctx;
@@ -100,7 +100,7 @@ void test_parsing_adaptation_field(void) {
     // parse a TS Packet
     FILE *fp = fopen("test/data/00.ts", "rb");
     test_assert_null(fp, "open 'test/data/00.ts'");
-    char buffer[20480]; // 20KB
+    uint8_t buffer[20480]; // 20KB
     size_t len = fread(buffer, 1, 20480, fp);
 
     TSDemuxContext ctx;
@@ -130,8 +130,8 @@ void test_parsing_adaptation_field(void) {
     test_assert_equal(96008749L, af->program_clock_reference_base, "Program Clock Reference Base");
     test_assert_equal(0L, af->program_clock_reference_extension, "Program Clock Reference Extension");
 
-    test_assert_equal_ptr((size_t)(ptr+11), (size_t)pkt.data_bytes, "the data starts at the end of the adaptation field");
-    test_assert_equal(177, pkt.data_bytes_length, "the length of the byte data");
+    test_assert_equal_ptr((size_t)(ptr+12), (size_t)pkt.data_bytes, "the data starts at the end of the adaptation field");
+    test_assert_equal(176, pkt.data_bytes_length, "the length of the byte data");
 
     test_end();
 }
@@ -143,7 +143,7 @@ void test_parsing_opcr(void)
     // parse a TS Packet
     FILE *fp = fopen("test/data/01.ts", "rb");
     test_assert_null(fp, "open 'test/data/01.ts'");
-    char buffer[2048000]; // 20KB
+    uint8_t buffer[2048000]; // 20KB
     size_t len = fread(buffer, 1, 2048000, fp);
 
     TSDemuxContext ctx;

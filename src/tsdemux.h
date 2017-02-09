@@ -50,7 +50,7 @@ typedef enum EventId EventId;
 /**
  * Memory Allocator.
  * Allocate memory block.
- * See realloc C90 (C++98) definition.
+ * See malloc C90 (C++98) definition.
  */
 typedef void * (*tsd_malloc) (size_t size);
 
@@ -346,7 +346,7 @@ typedef struct AdaptationField {
     uint8_t splice_countdown;
     // transport provate data flag == '1'
     uint8_t transport_private_data_length;
-    const void *private_data_byte;
+    const uint8_t *private_data_byte;
     // adaptation_field_extension_flag == '1'
     AdaptationFieldExtension adaptation_field_extension;
 } AdaptationField;
@@ -449,6 +449,7 @@ typedef struct PESPacket {
     uint16_t previous_pes_packet_crc;
     PESExtension extension;
     const uint8_t *data_bytes;
+    size_t data_bytes_length;
 } PESPacket;
 
 /**
@@ -540,15 +541,6 @@ typedef DescriptorData CATData;
 typedef DescriptorData TSDTData;
 
 /**
- * PID Data.
- * Data carried within a specific PID.
- */
-typedef struct PIDData {
-    uint8_t *data;
-    size_t size;
-} PIDData;
-
-/**
  * Table Data.
  * Raw Table Data extracted from a Table which we don't support the parsing of.
  */
@@ -576,6 +568,7 @@ typedef struct TSDemuxContext {
      * The PIDs registered for demuxing.
      */
     uint16_t registered_pids[MAX_PID_REGISTRATIONS];
+    DataContext *registered_pids_data[MAX_PID_REGISTRATIONS];
     size_t registered_pids_length;
 
     /**
@@ -653,7 +646,7 @@ size_t demux(TSDemuxContext *ctx, void *data, size_t size, TSCode *code);
  * @return TSD_OK on success. See the TSCode enum for error codes.
  */
 TSCode parse_packet_header(TSDemuxContext *ctx,
-                           const void *data,
+                           const uint8_t *data,
                            size_t size,
                            TSPacket *hdr);
 
@@ -668,7 +661,7 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
  * @return TSD_OK on success.
  */
 TSCode parse_adaptation_field(TSDemuxContext *ctx,
-                              const void *data,
+                              const uint8_t *data,
                               size_t size,
                               AdaptationField *adap);
 
@@ -764,7 +757,7 @@ TSCode parse_pmt(TSDemuxContext *ctx,
  * @return Returns TSD_OK on success.
  */
 TSCode parse_pes(TSDemuxContext *ctx,
-                 const void *data,
+                 const uint8_t *data,
                  size_t size,
                  PESPacket *pes);
 

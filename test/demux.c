@@ -78,8 +78,13 @@ void test_demux(void)
     size_t parsed = 0;
 
     register_pid(&ctx, 0x01E1);
+    int n = 0;
 
     while(count > 0) {
+        n+=count;
+        if(n == 32070920) {
+            printf("here we go!\n");
+        }
         parsed = demux(&ctx, buffer, count, &res);
         count = fread(buffer, 1, 1880, fp);
     }

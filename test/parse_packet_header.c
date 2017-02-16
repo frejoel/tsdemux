@@ -88,8 +88,8 @@ void test_parsing(void)
     test_assert_equal(SC_NO_SCRAMBLING, pkt.transport_scrambling_control, "transport scrambling control");
     test_assert_equal(AFC_NO_FIELD_PRESENT, pkt.adaptation_field_control, "adaptation field control");
     test_assert_equal(5, pkt.continuity_counter, "continuity counter");
-    test_assert_equal_ptr((size_t)(buffer+4), (size_t)pkt.data_bytes, "the data starts at the end of the header");
-    test_assert_equal(184, pkt.data_bytes_length, "the length of the byte data");
+    test_assert_equal_ptr((size_t)(buffer+5), (size_t)pkt.data_bytes, "the data starts at the end of the header");
+    test_assert_equal(183, pkt.data_bytes_length, "the length of the byte data");
 
     test_end();
 }
@@ -130,8 +130,8 @@ void test_parsing_adaptation_field(void) {
     test_assert_equal(96008749L, af->program_clock_reference_base, "Program Clock Reference Base");
     test_assert_equal(0L, af->program_clock_reference_extension, "Program Clock Reference Extension");
 
-    test_assert_equal_ptr((size_t)(ptr+12), (size_t)pkt.data_bytes, "the data starts at the end of the adaptation field");
-    test_assert_equal(176, pkt.data_bytes_length, "the length of the byte data");
+    test_assert_equal_ptr((size_t)(ptr+13), (size_t)pkt.data_bytes, "the data starts at the end of the adaptation field");
+    test_assert_equal(175, pkt.data_bytes_length, "the length of the byte data");
 
     test_end();
 }

@@ -8,8 +8,7 @@ int freed = 0;
 
 void *my_malloc(size_t size)
 {
-    if(size == 0) {
-        return NULL;
+    if(size == 0) NULL;
     }
     allocated+=size;
     uint32_t *mem = (uint32_t*)malloc(size+4);
@@ -117,52 +116,55 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
     const uint8_t *ptr = data;
     const uint8_t *end = &ptr[size];
     // check the sync byte
-    if(ptr+1 > end) return TSD_INVALID_DATA_SIZE;
     hdr->sync_byte = *ptr;
     if(hdr->sync_byte != TSD_SYNC_BYTE)  return TSD_INVALID_SYNC_BYTE;
     ptr++;
 
-    if(ptr+1 > end) return TSD_INVALID_DATA_SIZE;
     hdr->flags = (*ptr) >> 5;
     hdr->pid = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
     ptr+=2;
 
-    if(ptr+1 > end) return TSD_INVALID_DATA_SIZE;
     hdr->transport_scrambling_control = ((*ptr) >> 6) & 0x03;
     hdr->adaptation_field_control = ((*ptr) >> 4) & 0x03;
     hdr->continuity_counter = (*ptr) & 0x0F;
     ptr++;
 
+    // parse the adaptation field if it exists
     if(hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_AND_PAYLOAD ||
        hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_ONLY) {
-        if(ptr+4 > end) return TSD_INVALID_DATA_SIZE;
 
         TSCode res = parse_adaptation_field(ctx, ptr, size-4,
                                             &hdr->adaptation_field);
 
         if(res != TSD_OK) return res;
 
-        if(ptr+hdr->adaptation_field.adaptation_field_length > end) {
+        if(end < &ptr[hdr->adaptation_field.adaptation_field_length]) {
             return TSD_INVALID_DATA_SIZE;
         };
         ptr = &ptr[hdr->adaptation_field.adaptation_field_length + 1];
     }
 
+    // is there a payload in this packet?
     if(hdr->adaptation_field_control == AFC_NO_FIELD_PRESENT ||
        hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_AND_PAYLOAD) {
 
+        // handle error packets
         if((hdr->flags & TSPF_TRANSPORT_ERROR_INDICATOR) ||
            (hdr->pid == PID_NULL_PACKETS)) {
             hdr->data_bytes = NULL;
             hdr->data_bytes_length = 0;
         } else {
-            size_t len = (size_t)ptr - (size_t)data;
+            size_t len = TSD_TSPACKET_SIZE - ((size_t)ptr - (size_t)data);
             if(len >= TSD_TSPACKET_SIZE) {
                 hdr->data_bytes = NULL;
                 hdr->data_bytes_length = 0;
             } else {
-                hdr->data_bytes_length = TSD_TSPACKET_SIZE - len;
-                hdr->data_bytes = ptr;
+                uint8_t pointer_field = 0;
+                if(hdr->flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
+                    pointer_field = (*ptr) + 1;
+                }
+                hdr->data_bytes = &ptr[pointer_field];
+                hdr->data_bytes_length = len - pointer_field;
             }
         }
     } else {
@@ -349,17 +351,9 @@ TSCode parse_table(TSDemuxContext *ctx,
 
     if(pkt->flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
         // there is a new table section somewhere in this packet.
-        // if we haven't starting writing any table sections yet we'll need to
-        // jump to this location
-        if(ctx->buffers.active == NULL) {
-            pointer_field = ((size_t)pkt->data_bytes[0]) + 1;
-        } else {
-            pointer_field = 1;
-        }
-
         // parse some of the table info so that we can find the DataContext
         // assoicated with this table
-        const uint8_t *ptr = &pkt->data_bytes[pointer_field];
+        const uint8_t *ptr = pkt->data_bytes;
         uint8_t table_id = *ptr;
         uint16_t table_ext = 0;
         uint8_t version = 0;
@@ -367,6 +361,7 @@ TSCode parse_table(TSDemuxContext *ctx,
             table_ext = parse_uint16(*((uint16_t*)&ptr[3]));
             version = (ptr[5] & 0x3E) >> 1;
         }
+
         // set the DataContext for this table as active
         res = get_data_context(ctx,
                                table_id,
@@ -386,8 +381,8 @@ TSCode parse_table(TSDemuxContext *ctx,
     }
 
     DataContext *dataCtx = ctx->buffers.active;
-    const uint8_t *write_pos = pkt->data_bytes + pointer_field;
-    size_t write_size = pkt->data_bytes_length - pointer_field;
+    const uint8_t *write_pos = pkt->data_bytes;
+    size_t write_size = pkt->data_bytes_length;
 
     // write the data into our buffer
     res = data_context_write(ctx, dataCtx, write_pos, write_size);
@@ -407,7 +402,11 @@ TSCode parse_table(TSDemuxContext *ctx,
         section_count++;
 
         if((ptr+1) < dataCtx->write && *(ptr+1) == 0xFF) {
-            // we found the end of the table, create and parse the sections
+            // we found the end of the table,
+            // clear the active buffer seeing as we've finished with the table
+            ctx->buffers.active = NULL;
+
+            // create and parse the sections.
             table->length = section_count;
             table->sections = (TableSection*) ctx->calloc(section_count,
                               sizeof(TableSection));
@@ -452,7 +451,7 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
             // long form table properties
             // Note that the pat_transport_stream_id is a union between PAT, CAT
             // and PMT data.
-            section->u16.pat_transport_stream_id = parse_uint16(*((uint16_t*)(ptr)));
+            section->table_id_extension = parse_uint16(*((uint16_t*)(ptr)));
             section->version_number = ((*(ptr+2)) >> 1) & 0x1F;
             section->flags |= ((*(ptr+2)) & 0x01) << 2; // current next indicator
             section->section_number = *(ptr+3);
@@ -464,7 +463,7 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
             section->section_data_length = section->section_length - 9;
         } else {
             // set everything to zero for short form
-            section->u16.pat_transport_stream_id = 0;
+            section->table_id_extension = 0;
             section->version_number = 0;
             section->section_number = 0;
             section->last_section_number = 0;
@@ -943,21 +942,35 @@ TSCode extract_table_data(TSDemuxContext *ctx,
 {
     memset(table, 0, sizeof(Table));
     TSCode res = parse_table(ctx, hdr, table);
-    DataContext *data = ctx->buffers.active;
 
     if(res != TSD_OK && res != TSD_INCOMPLETE_TABLE) {
-        data_context_reset(ctx, data);
+        // clear the active buffer if it is set
+        data_context_reset(ctx, ctx->buffers.active);
         ctx->buffers.active = NULL;
         return res;
     }
 
-    // the could be incomplete at this point, so continue parsing
+    // get the data context for the table in question using the first section
+    // as a reference.
+    TableSection *section = &table->sections[0];
+    DataContext *data = NULL;
+    res = get_data_context(ctx,
+                           section->table_id,
+                           section->table_id_extension,
+                           section->version_number,
+                           &data);
+
+    // the table could be incomplete at this point, so continue parsing
     if(res == TSD_INCOMPLETE_TABLE || (data && data->size == 0)) {
         return TSD_INCOMPLETE_TABLE;
     }
 
     // we have a complete table.
     // create a contiguous memory buffer for parsing the table
+    if(res != TSD_OK) {
+        return res;
+    }
+
     size_t block_size = data->write - data->buffer;
     void *block = ctx->malloc(block_size);
     if(!block) {
@@ -984,6 +997,9 @@ TSCode extract_table_data(TSDemuxContext *ctx,
 
     *size = written;
     *mem = block;
+
+    // reset the block of data
+    data_context_reset(ctx, data);
 
     return TSD_OK;
 }

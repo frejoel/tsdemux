@@ -12,8 +12,8 @@ int main(int argc, char **charv)
 
 void event_cb(TSDemuxContext *ctx, EventId event_id, void *data)
 {
-    printf("\n##########\nevent_cb %d\n==========\n", event_id);
     if(event_id == TSD_EVENT_PAT) {
+        printf("\n##########\nevent_cb %d\n==========\n", event_id);
         PATData *pat = (PATData*)data;
         size_t len = pat->length;
         size_t i;
@@ -25,6 +25,7 @@ void event_cb(TSDemuxContext *ctx, EventId event_id, void *data)
     }
 
     if(event_id == TSD_EVENT_PMT) {
+        printf("\n##########\nevent_cb %d\n==========\n", event_id);
         printf("PMT\n");
         PMTData *pmt = (PMTData*)data;
         printf("PCR PID: %04X\n", pmt->pcr_pid);
@@ -56,7 +57,8 @@ void event_cb(TSDemuxContext *ctx, EventId event_id, void *data)
 
     if(event_id == TSD_EVENT_PID) {
         PESPacket *pes = (PESPacket*) data;
-        printf("PES stream id: %04X\n", pes->stream_id);
+        //printf("\n##########\nevent_cb %d\n==========\n", event_id);
+        //printf("PES stream id: %04X\n", pes->stream_id);
     }
 }
 
@@ -69,6 +71,7 @@ void test_demux(void)
 
     set_event_callback(&ctx, event_cb);
 
+    //FILE *fp = fopen("test/data/media_0_0.ts", "rb");
     FILE *fp = fopen("test/data/friends.ts", "rb");
     char buffer[1880];
 

@@ -58,6 +58,8 @@ void test_parse_longform_table(void)
 
     // this is a long form table
     uint8_t tableData[] = {
+        0x01, // pointer field
+        0xFF, // padding
         0x01, // table id
         0b10110000, // section syntax indicator, 4 bits of section length (0000)
         0x10, // rest of the section length (16)
@@ -133,6 +135,8 @@ void test_parse_shortform_table(void)
 
     // this is a short form table
     uint8_t tableData[] = {
+        0x01, // pointer field
+        0xFF, // padding
         0xEA, // table id
         0b00110000, // section syntax indicator, 4 bits of section length (0000)
         0x10, // rest of the section length (16)
@@ -205,6 +209,7 @@ void test_parse_multi_packet_table(void)
 
     // this is a long form table
     uint8_t tableData[] = {
+        0x00, // pointer field
         0xC2, // table id
         0b10110000, // section syntax indicator, 4 bits of section length (0000)
         0x10, // rest of the section length (16)

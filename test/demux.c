@@ -19,6 +19,9 @@ void event_cb(TSDemuxContext *ctx, EventId event_id, void *data)
         size_t i;
         printf("PAT, Length %d\n", pat->length);
 
+        if(len > 1) {
+            printf("number of progs: %d\n", len);
+        }
         for(i=0; i<len; ++i) {
             printf("  %d) prog num: 0x%X, pid: 0x%X\n", i, pat->program_number[i], pat->pid[i]);
         }
@@ -71,8 +74,7 @@ void test_demux(void)
 
     set_event_callback(&ctx, event_cb);
 
-    //FILE *fp = fopen("test/data/media_0_0.ts", "rb");
-    FILE *fp = fopen("test/data/friends.ts", "rb");
+    FILE *fp = fopen("test/data/media_0_0.ts", "rb");
     char buffer[1880];
 
     TSPacket hdr;
@@ -85,9 +87,6 @@ void test_demux(void)
 
     while(count > 0) {
         n+=count;
-        if(n == 32070920) {
-            printf("here we go!\n");
-        }
         parsed = demux(&ctx, buffer, count, &res);
         count = fread(buffer, 1, 1880, fp);
     }
@@ -98,6 +97,7 @@ void test_demux(void)
     for(i=0; i<ctx.pids_length; ++i) {
         printf("PID %d) 0x%04X\n", i, ctx.pids[i]);
     }
+    printf("PID Length: %d\n", ctx.pids_length);
 
     test_end();
 }

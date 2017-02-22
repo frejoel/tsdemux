@@ -2,23 +2,46 @@
 #include "string.h"
 #include <stdio.h>
 
-/**
+/*
 int allocated = 0;
 int freed = 0;
+size_t address_list[4096];
+int address_list_len = 0;
 
 void *my_malloc(size_t size)
 {
-    if(size == 0) NULL;
-    }
+    if(size == 0) return NULL;
+
     allocated+=size;
     uint32_t *mem = (uint32_t*)malloc(size+4);
     mem[0] = (uint32_t)size;
     printf("malloc: %d, allocated: %d, freed: %d, remaning: %d\n", size, allocated, freed, allocated - freed);
+    address_list[address_list_len] = (size_t)(&mem[1]);
+    address_list_len++;
     return (void*)&mem[1];
 }
 
 void my_free(void *mem)
 {
+    int i=0;
+    int found = 0;
+    for(; i<address_list_len; ++i) {
+        // did we find the address in our list?
+        if(address_list[i] == (size_t)(mem)) {
+            found = 1;
+            // replace the old entries...
+            int j=i+1;
+            for(; j<address_list_len; ++j) {
+                address_list[j-1] = address_list[j];
+            }
+            address_list_len--;
+            break;
+        }
+    }
+    if(found == 0) {
+        printf("ERROR!!!!! double free: %d\n", (size_t)mem);
+    }
+
     uint32_t *mem2 = (uint32_t*)mem;
     mem2--;
     freed+= mem2[0];
@@ -39,7 +62,7 @@ void *my_realloc(void *mem, size_t size)
     }
     return my_malloc(size);
 }
-*/
+// */
 
 uint16_t parse_uint16(uint16_t val)
 {
@@ -103,6 +126,19 @@ TSCode set_event_callback(TSDemuxContext *ctx, tsd_on_event callback)
     return TSD_OK;
 }
 
+void dump_packet_data(const uint8_t *data)
+{
+    int i=0;
+    for(; i<188; i+=8) {
+        int j=0;
+        for(; j<8; ++j) {
+            printf("%02X ", data[i+j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
 TSCode parse_packet_header(TSDemuxContext *ctx,
                            const uint8_t *data,
                            size_t size,
@@ -129,6 +165,9 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
     hdr->continuity_counter = (*ptr) & 0x0F;
     ptr++;
 
+    hdr->data_bytes = NULL;
+    hdr->data_bytes_length = 0;
+
     // parse the adaptation field if it exists
     if(hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_AND_PAYLOAD ||
        hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_ONLY) {
@@ -142,6 +181,8 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
             return TSD_INVALID_DATA_SIZE;
         };
         ptr = &ptr[hdr->adaptation_field.adaptation_field_length + 1];
+    } else {
+        memset(&hdr->adaptation_field, 0, sizeof(AdaptationField));
     }
 
     // is there a payload in this packet?
@@ -149,27 +190,17 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
        hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_AND_PAYLOAD) {
 
         // handle error packets
-        if((hdr->flags & TSPF_TRANSPORT_ERROR_INDICATOR) ||
-           (hdr->pid == PID_NULL_PACKETS)) {
-            hdr->data_bytes = NULL;
-            hdr->data_bytes_length = 0;
-        } else {
+        if(!(hdr->flags & TSPF_TRANSPORT_ERROR_INDICATOR) &&
+           (hdr->pid != PID_NULL_PACKETS)) {
+
             size_t len = TSD_TSPACKET_SIZE - ((size_t)ptr - (size_t)data);
-            if(len >= TSD_TSPACKET_SIZE) {
-                hdr->data_bytes = NULL;
-                hdr->data_bytes_length = 0;
-            } else {
-                uint8_t pointer_field = 0;
-                if(hdr->flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
-                    pointer_field = (*ptr) + 1;
-                }
-                hdr->data_bytes = &ptr[pointer_field];
-                hdr->data_bytes_length = len - pointer_field;
+            if(len <= TSD_TSPACKET_SIZE - 4) {
+                // note that there may or may not be a pointer_field in the
+                // data, we can't tell whether there is yet.
+                hdr->data_bytes = ptr;
+                hdr->data_bytes_length = len;
             }
         }
-    } else {
-        hdr->data_bytes = NULL;
-        hdr->data_bytes_length = 0;
     }
 
     return TSD_OK;
@@ -191,6 +222,9 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
     if(ptr+1 > end) return TSD_INVALID_DATA_SIZE;
 
     adap->adaptation_field_length = *ptr;
+    if(adap->adaptation_field_length > TSD_TSPACKET_SIZE - 5) {
+        return TSD_PARSE_ERROR;
+    }
     if(adap->adaptation_field_length > 0) {
         ptr++;
         if(ptr+1 > end) return TSD_INVALID_DATA_SIZE;
@@ -342,18 +376,23 @@ TSCode parse_table(TSDemuxContext *ctx,
 
     TSCode res;
 
-    // payload data error handling
+    // payload data error handling.
     if(pkt->data_bytes == NULL || pkt->data_bytes_length == 0) {
         return TSD_INCOMPLETE_TABLE;
     }
 
-    size_t pointer_field = 0;
+    // keep hold of the data location.
+    const uint8_t *ptr = pkt->data_bytes;
+    size_t ptr_len = pkt->data_bytes_length;
 
     if(pkt->flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
         // there is a new table section somewhere in this packet.
+        // parse the pointer_field.
+        size_t pointer_field = *ptr;
+        ptr = &ptr[pointer_field+1];
+        ptr_len -= (pointer_field + 1);
         // parse some of the table info so that we can find the DataContext
-        // assoicated with this table
-        const uint8_t *ptr = pkt->data_bytes;
+        // assoicated with this table.
         uint8_t table_id = *ptr;
         uint16_t table_ext = 0;
         uint8_t version = 0;
@@ -362,7 +401,7 @@ TSCode parse_table(TSDemuxContext *ctx,
             version = (ptr[5] & 0x3E) >> 1;
         }
 
-        // set the DataContext for this table as active
+        // set the DataContext for this table as active.
         res = get_data_context(ctx,
                                table_id,
                                table_ext,
@@ -381,18 +420,15 @@ TSCode parse_table(TSDemuxContext *ctx,
     }
 
     DataContext *dataCtx = ctx->buffers.active;
-    const uint8_t *write_pos = pkt->data_bytes;
-    size_t write_size = pkt->data_bytes_length;
-
     // write the data into our buffer
-    res = data_context_write(ctx, dataCtx, write_pos, write_size);
+    res = data_context_write(ctx, dataCtx, ptr, ptr_len);
     if(res != TSD_OK) {
         return res;
     }
 
     // has the table completed yet? We'll need enough data to see the section
     // length to figure that out.
-    uint8_t *ptr = dataCtx->buffer;
+    ptr = dataCtx->buffer;
     int section_count = 0;
 
     while(ptr < dataCtx->write) {
@@ -950,6 +986,11 @@ TSCode extract_table_data(TSDemuxContext *ctx,
         return res;
     }
 
+    // there may not be any sections available yet.
+    if(!table->sections) {
+        return res;
+    }
+
     // get the data context for the table in question using the first section
     // as a reference.
     TableSection *section = &table->sections[0];
@@ -1018,21 +1059,6 @@ TSCode demux_pat(TSDemuxContext *ctx, TSPacket *hdr)
         return res;
     }
 
-    // TODO: If the protocol version is not zero pass this table to the user
-    //       instead of trying to parse it.
-    // if(table.length > 0) {
-    //     if(ctx->event_cb) {
-    //         TableData tdata;
-    //         tdata.table = &table;
-    //         tdata.data = block;
-    //         tdata.size = written;
-    //         ctx->event_cb(ctx, TSD_EVENT_TABLE, (void*)&tdata);
-    //         // cleanup
-    //         ctx->free((void *)block);
-    //     }
-    //     return TSD_OK;
-    // }
-
     // parse the PAT
     PATData *pat = &ctx->pat.value;
     memset(pat, 0, sizeof(PATData));
@@ -1046,6 +1072,7 @@ TSCode demux_pat(TSDemuxContext *ctx, TSPacket *hdr)
             // free the existing data
             if(ctx->pmt.values) {
                 ctx->free(ctx->pmt.values);
+                ctx->pmt.values = NULL;
             }
             // allocate new array
             if(pat_len > 0) {
@@ -1164,12 +1191,26 @@ size_t demux(TSDemuxContext *ctx,
 
     while(remaining >= TSD_TSPACKET_SIZE) {
         res = parse_packet_header(ctx, ptr, size, &hdr);
+        // if we run into an error try parsing the next packet.
         if(res != TSD_OK) {
-            // set the code to the error
-            if(code != NULL) {
-                *code = res;
+            // if the error is due to an invalid sync byte, see if we can
+            // lock onto a valid one.
+            if(res == TSD_INVALID_SYNC_BYTE) {
+                while(remaining >= TSD_TSPACKET_SIZE) {
+                    remaining--;
+                    ptr++;
+                    // if we find a value for a sync byte try and use that.
+                    if(*ptr == TSD_SYNC_BYTE) {
+                        break;
+                    }
+                }
+                continue;
+            } else {
+                // skip this packet
+                remaining -= TSD_TSPACKET_SIZE;
+                ptr += TSD_TSPACKET_SIZE;
+                continue;
             }
-            break;
         }
 
         remaining -= TSD_TSPACKET_SIZE;
@@ -1177,7 +1218,8 @@ size_t demux(TSDemuxContext *ctx,
 
         // skip packets with errors and null packets
         if((hdr.flags & TSPF_TRANSPORT_ERROR_INDICATOR) ||
-           (hdr.pid == PID_NULL_PACKETS)) {
+           (hdr.pid == PID_NULL_PACKETS) ||
+           (hdr.adaptation_field_control == AFC_RESERVED)) {
             continue;
         }
 
@@ -1233,20 +1275,28 @@ size_t demux(TSDemuxContext *ctx,
                 if(hdr.flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
                     size_t i;
                     for(i=0; i < ctx->registered_pids_length; ++i) {
-                        DataContext *data = ctx->registered_pids_data[i];
-                        if(hdr.flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
-                            data_context_reset(ctx, data);
+                        if(ctx->registered_pids[i] != hdr.pid) {
+                            continue;
                         }
-                        data_context_write(ctx, data, hdr.data_bytes, hdr.data_bytes_length);
+                        DataContext *dataCtx = ctx->registered_pids_data[i];
+                        const uint8_t *ptr = hdr.data_bytes;
+                        size_t ptr_len = hdr.data_bytes_length;
+                        if(hdr.flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
+                            uint8_t pointer_field = *ptr;
+                            ptr = &ptr[pointer_field+1];
+                            ptr_len -= (pointer_field + 1);
+                            data_context_reset(ctx, dataCtx);
+                        }
+                        data_context_write(ctx, dataCtx, ptr, ptr_len);
 
                         // get the PES length to see if we have the complete
                         // packet
-                        size_t data_len = data->write - data->buffer;
+                        size_t data_len = dataCtx->write - dataCtx->buffer;
                         if(data_len > 5) {
-                            uint16_t pes_len = parse_uint16(*((uint16_t*)&data->buffer[5])) + 5;
+                            uint16_t pes_len = parse_uint16(*((uint16_t*)&dataCtx->buffer[5])) + 5;
                             if(data_len >= pes_len) {
                                 PESPacket pes;
-                                res = parse_pes(ctx, data->buffer, data_len, &pes);
+                                res = parse_pes(ctx, dataCtx->buffer, data_len, &pes);
                                 if(res != TSD_OK) {
                                     printf("bad PES parse\n");
                                 } else {
@@ -1261,7 +1311,7 @@ size_t demux(TSDemuxContext *ctx,
     }
 
     // cleaup all the buffers if there isn't an active one
-    if(ctx->buffers.active == NULL) {
+    if(ctx->buffers.active == NULL && ctx->buffers.length > 0) {
         size_t len = ctx->buffers.length;
         size_t i;
         for(i=0; i<len; ++i) {

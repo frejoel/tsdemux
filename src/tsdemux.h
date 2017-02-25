@@ -98,6 +98,7 @@ typedef enum TSCode {
     TSD_PID_ALREADY_REGISTERED                = 0x000B,
     TSD_MAX_PID_REGISTRATIONS_REACHED         = 0x000C,
     TSD_PID_NOT_FOUND                         = 0x000D,
+    TSD_INVALID_POINTER_FIELD                 = 0x000E,
 } TSCode;
 
 /**

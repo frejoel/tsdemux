@@ -2,68 +2,6 @@
 #include "string.h"
 #include <stdio.h>
 
-/*
-int allocated = 0;
-int freed = 0;
-size_t address_list[4096];
-int address_list_len = 0;
-
-void *my_malloc(size_t size)
-{
-    if(size == 0) return NULL;
-
-    allocated+=size;
-    uint32_t *mem = (uint32_t*)malloc(size+4);
-    mem[0] = (uint32_t)size;
-    printf("malloc: %d, allocated: %d, freed: %d, remaning: %d\n", size, allocated, freed, allocated - freed);
-    address_list[address_list_len] = (size_t)(&mem[1]);
-    address_list_len++;
-    return (void*)&mem[1];
-}
-
-void my_free(void *mem)
-{
-    int i=0;
-    int found = 0;
-    for(; i<address_list_len; ++i) {
-        // did we find the address in our list?
-        if(address_list[i] == (size_t)(mem)) {
-            found = 1;
-            // replace the old entries...
-            int j=i+1;
-            for(; j<address_list_len; ++j) {
-                address_list[j-1] = address_list[j];
-            }
-            address_list_len--;
-            break;
-        }
-    }
-    if(found == 0) {
-        printf("ERROR!!!!! double free: %d\n", (size_t)mem);
-    }
-
-    uint32_t *mem2 = (uint32_t*)mem;
-    mem2--;
-    freed+= mem2[0];
-    printf("free: %d, allocated: %d, freed: %d, remaning: %d\n", mem2[0], allocated, freed, allocated - freed);
-}
-
-void *my_calloc(size_t a, size_t b)
-{
-    void *mem = my_malloc(a*b);
-    memset(mem, 0, a*b);
-    return mem;
-}
-
-void *my_realloc(void *mem, size_t size)
-{
-    if(mem) {
-        my_free(mem);
-    }
-    return my_malloc(size);
-}
-// */
-
 uint16_t parse_uint16(uint16_t val)
 {
 #ifdef __BIG_ENDIAN__
@@ -320,8 +258,8 @@ TSCode get_data_context(TSDemuxContext *ctx,
                   ((uint32_t)version);
 
     // go through the DataContexts already Available and see if we have a match
-    size_t i;
-    for(i=0; i<ctx->buffers.length; ++i) {
+    size_t i=0;
+    for(; i<ctx->buffers.length; ++i) {
         if(ctx->buffers.pool[i].id == id) {
             // found a matching DataContext
             *context = &ctx->buffers.pool[i];
@@ -389,6 +327,9 @@ TSCode parse_table(TSDemuxContext *ctx,
         // there is a new table section somewhere in this packet.
         // parse the pointer_field.
         size_t pointer_field = *ptr;
+        if(pointer_field >= pkt->data_bytes_length) {
+            return TSD_INVALID_POINTER_FIELD;
+        }
         ptr = &ptr[pointer_field+1];
         ptr_len -= (pointer_field + 1);
         // parse some of the table info so that we can find the DataContext
@@ -472,9 +413,14 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
     if(table == NULL)            return TSD_INVALID_ARGUMENT;
 
     uint8_t *ptr = data;
+    uint8_t *end = &data[size];
     size_t i;
 
     for(i=0; i < table->length; ++i) {
+        // make sure we have enough data to parse the table info
+        if((size_t)(end - ptr) < 3) {
+            return TSD_INVALID_DATA_SIZE;
+        }
         TableSection *section = &(table->sections[i]);
         section->table_id = *ptr;
         ptr++;
@@ -482,11 +428,18 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
         section->flags = (int)(((*ptr) >> 6) & 0x03);
         section->section_length = parse_uint16(*((uint16_t*)ptr)) & 0x0FFF;
         ptr+=2;
+        if(&ptr[section->section_length] > end) {
+            return TSD_INVALID_DATA_SIZE;
+        }
         // are we dealing with a long form or short form table?
         if(section->flags & TBL_SECTION_SYNTAX_INDICATOR) {
             // long form table properties
-            // Note that the pat_transport_stream_id is a union between PAT, CAT
-            // and PMT data.
+            // Note that the table_id_extension could be PAT, CAT or PMT data.
+            // make sure we have enough data, and that the section length is
+            // long enought to parse the table info.
+            if((size_t)(end - ptr) < 9 || section->section_length < 9) {
+                return TSD_INVALID_DATA_SIZE;
+            }
             section->table_id_extension = parse_uint16(*((uint16_t*)(ptr)));
             section->version_number = ((*(ptr+2)) >> 1) & 0x1F;
             section->flags |= ((*(ptr+2)) & 0x01) << 2; // current next indicator
@@ -564,10 +517,14 @@ size_t descriptor_count(const uint8_t *ptr, size_t length)
     const uint8_t *end = &ptr[length];
     size_t count = 0;
 
-    while(ptr < end) {
+    while((ptr+2) < end) {
         ++count;
         uint8_t desc_len = ptr[1];
-        ptr = &ptr[2 + desc_len];
+        if(desc_len > 0 && &ptr[2+desc_len] <= end) {
+            ptr = &ptr[2 + desc_len];
+        } else {
+            break;
+        }
     }
 
     return count;
@@ -578,17 +535,24 @@ size_t parse_descriptor(const uint8_t* data,
                         Descriptor *descriptors,
                         size_t length)
 {
-    size_t i=0;
     Descriptor *desc;
     const uint8_t *ptr = data;
     const uint8_t *end = &data[size];
 
-    for(i=0; i < length && ptr < end; ++i) {
+    size_t i=0;
+    for(; i < length && (ptr+2) < end; ++i) {
         desc = &descriptors[i];
         desc->tag = ptr[0];
         desc->length = ptr[1];
-        desc->data = &ptr[2];
-        ptr = &ptr[desc->length + 2];
+        // make sure we have enough data to correctly parse the descriptors
+        if(desc->length > 0 && &ptr[desc->length + 2] <= end) {
+            desc->data = &ptr[2];
+            ptr = &ptr[desc->length + 2];
+        } else {
+            desc->data = NULL;
+            desc->length = 0;
+            ptr = end;
+        }
     }
 
     return (size_t)(ptr - data);
@@ -605,15 +569,21 @@ TSCode parse_pmt(TSDemuxContext *ctx,
     if(pmt == NULL)                 return TSD_INVALID_ARGUMENT;
 
     const uint8_t *ptr = data;
+    const uint8_t *end = &ptr[size];
+
     pmt->pcr_pid = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
     ptr += 2;
     pmt->program_info_length = parse_uint16(*((uint16_t*)ptr)) & 0x0FFF;
     ptr += 2;
 
-    // parse the outter descriptor into a one-dimensional array
     size_t desc_size = (size_t)pmt->program_info_length;
-    size_t count = 0;
+    // make sure we have enough data to parse the desciptors
+    if(&ptr[desc_size] > end) {
+        return TSD_INVALID_DATA_SIZE;
+    }
 
+    // parse the outter descriptor into a one-dimensional array
+    size_t count = 0;
     if(desc_size > 0) {
         count = descriptor_count(ptr, desc_size);
         // create and parse the descriptors
@@ -674,6 +644,11 @@ TSCode parse_pmt(TSDemuxContext *ctx,
             prog->descriptors = NULL;
             prog->descriptors_length = 0;
             continue;
+        }
+
+        // make sure we make enough data to parse the descriptors
+        if(&ptr[desc_size] > end) {
+            return TSD_INVALID_DATA_SIZE;
         }
 
         size_t inner_count = descriptor_count(ptr, desc_size);
@@ -1013,6 +988,10 @@ TSCode extract_table_data(TSDemuxContext *ctx,
     }
 
     size_t block_size = data->write - data->buffer;
+    if(block_size == 0) {
+        return TSD_INVALID_DATA_SIZE;
+    }
+
     void *block = ctx->malloc(block_size);
     if(!block) {
         data_context_reset(ctx, data);
@@ -1021,16 +1000,22 @@ TSCode extract_table_data(TSDemuxContext *ctx,
     }
 
     uint8_t *ptr = (uint8_t*) block;
-    size_t i;
+    uint8_t *end = &ptr[block_size];
+    size_t i=0;
     size_t written = 0;
 
     // go through all the sections and copy them into our buffer
-    for(i=0; i<table->length; ++i) {
+    for(; i<table->length; ++i) {
         TableSection *sec = &table->sections[i];
         if(!sec->section_data || sec->section_data_length == 0) {
             continue;
         }
         size_t len = sec->section_data_length;
+        // make sure we have enough room to accomodate the copy
+        if(&ptr[len] > end) {
+            ctx->free(block);
+            return TSD_INVALID_DATA_SIZE;
+        }
         memcpy(ptr, sec->section_data, len);
         written += len;
         ptr = &ptr[len];
@@ -1275,14 +1260,17 @@ size_t demux(TSDemuxContext *ctx,
                 if(hdr.flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
                     size_t i;
                     for(i=0; i < ctx->registered_pids_length; ++i) {
-                        if(ctx->registered_pids[i] != hdr.pid) {
+                        if(ctx->registered_pids[i] != hdr.pid || !hdr.data_bytes) {
                             continue;
                         }
-                        DataContext *dataCtx = ctx->registered_pids_data[i];
                         const uint8_t *ptr = hdr.data_bytes;
+                        DataContext *dataCtx = ctx->registered_pids_data[i];
                         size_t ptr_len = hdr.data_bytes_length;
                         if(hdr.flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
                             uint8_t pointer_field = *ptr;
+                            if(pointer_field >= ptr_len) {
+                                continue;
+                            }
                             ptr = &ptr[pointer_field+1];
                             ptr_len -= (pointer_field + 1);
                             data_context_reset(ctx, dataCtx);

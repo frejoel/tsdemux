@@ -1,6 +1,6 @@
 CC=gcc
 ODIR=bin
-CFLAGS=-Ibin -Lbin -ltsdemux_d -g
+CFLAGS=-O0 -Ibin -Lbin -ltsdemux_d -g
 
 TEST_FILES=test/parse_packet_header.o test/data_context.o test/parse_table.o test/parse_pat.o test/parse_pmt.o test/parse_cat.o test/register_pid.o test/parse_pes_header.o test/demux.o
 

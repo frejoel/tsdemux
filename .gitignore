@@ -3,3 +3,4 @@
 test/data/*
 bin/*
 *.o
+coverage/*

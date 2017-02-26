@@ -27,8 +27,12 @@ int main(int argc, char **charv) {
     tsd_set_event_callback(&ctx, event_cb);
 
     // we'll be a using a TS file from disk.
-    //FILE *fp = fopen("../test/data/media_0_0.ts", "rb");
-    FILE *fp = fopen("../test/data/friends.ts", "rb");
+    //FILE *fp = fopen("test/data/media_0_0.ts", "rb");
+    FILE *fp = fopen("test/data/friends.ts", "rb");
+    if(!fp) {
+        fprintf(stderr, "Couldn't open test file\n");
+        return 1;
+    }
     // create a buffer on the stack which we'll use to read the file data into.
     // we'll set the buffer size to exactly 10 TS packets but it could be any
     // size.

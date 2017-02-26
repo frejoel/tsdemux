@@ -26,8 +26,9 @@
 #include "string.h"
 #include <stdio.h>
 
-uint16_t parse_uint16(uint16_t val)
+uint16_t parse_u16(const uint8_t *bytes)
 {
+    uint16_t val = *((uint16_t*)bytes);
 #ifdef __BIG_ENDIAN__
     return val;
 #else
@@ -35,8 +36,22 @@ uint16_t parse_uint16(uint16_t val)
 #endif
 }
 
-uint64_t parse_uint64(uint64_t val)
+uint64_t parse_u32(const uint8_t *bytes)
 {
+    uint32_t val = *((uint32_t*)bytes);
+#ifdef __BIG_ENDIAN__
+    return val;
+#else
+    return ((val >> 24) & 0x000000FF) |
+           ((val >>  8) & 0x0000FF00) |
+           ((val <<  8) & 0x00FF0000) |
+           ((val << 24) & 0xFF000000) ;
+#endif
+}
+
+uint64_t parse_u64(const uint8_t *bytes)
+{
+    uint64_t val = *((uint64_t*)bytes);
 #ifdef __BIG_ENDIAN__
     return val;
 #else
@@ -48,18 +63,6 @@ uint64_t parse_uint64(uint64_t val)
            ((val << 24) & 0x0000FF0000000000L) |
            ((val << 40) & 0x00FF000000000000L) |
            ((val << 56) & 0xFF00000000000000L) ;
-#endif
-}
-
-uint64_t parse_uint32(uint32_t val)
-{
-#ifdef __BIG_ENDIAN__
-    return val;
-#else
-    return ((val >> 24) & 0x000000FF) |
-           ((val >>  8) & 0x0000FF00) |
-           ((val <<  8) & 0x00FF0000) |
-           ((val << 24) & 0xFF000000) ;
 #endif
 }
 
@@ -124,7 +127,7 @@ TSDCode tsd_parse_packet_header(TSDemuxContext *ctx,
     ptr++;
 
     hdr->flags = (*ptr) >> 5;
-    hdr->pid = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
+    hdr->pid = parse_u16(ptr) & 0x1FFF;
     ptr+=2;
 
     hdr->transport_scrambling_control = ((*ptr) >> 6) & 0x03;
@@ -192,6 +195,7 @@ TSDCode tsd_parse_adaptation_field(TSDemuxContext *ctx,
     if(adap->adaptation_field_length > TSD_TSPACKET_SIZE - 5) {
         return TSD_PARSE_ERROR;
     }
+
     if(adap->adaptation_field_length > 0) {
         ptr++;
         if(ptr+1 > end) return TSD_INVALID_DATA_SIZE;
@@ -200,7 +204,7 @@ TSDCode tsd_parse_adaptation_field(TSDemuxContext *ctx,
 
         if(adap->flags & TSD_AF_PCR_FLAG) {
             if(ptr+6 > end) return TSD_INVALID_DATA_SIZE;
-            uint64_t val = parse_uint64(*((uint64_t*)ptr));
+            uint64_t val = parse_u64(ptr);
             adap->program_clock_ref_base = (val >> 31) & 0x1FFFFFFFFL;
             // ignore the 6 reserved bytes
             adap->program_clock_ref_ext = (uint16_t)((val >> 16) & 0x1FFL);
@@ -209,7 +213,7 @@ TSDCode tsd_parse_adaptation_field(TSDemuxContext *ctx,
 
         if(adap->flags & TSD_AF_OPCR_FLAG) {
             if(ptr+6 > end) return TSD_INVALID_DATA_SIZE;
-            uint64_t val = parse_uint64(*((uint64_t*)ptr));
+            uint64_t val = parse_u64(ptr);
             adap->orig_program_clock_ref_base = (val >> 31) & 0x1FFFFFFFFL;
             // ignore the 6 reserved bytes
             adap->orig_program_clock_ref_ext = (uint16_t)((val >> 16) & 0x1FFL);
@@ -246,14 +250,14 @@ TSDCode tsd_parse_adaptation_field(TSDemuxContext *ctx,
                 if(ptr+2 > end) return TSD_INVALID_DATA_SIZE;
                 adap->adap_field_ext.ltw_valid_flag =
                     (*ptr) >> 7 & 0x01;
-                uint16_t offset = parse_uint16(*((uint16_t*)ptr));
+                uint16_t offset = parse_u16(ptr);
                 adap->adap_field_ext.ltw_offset = offset & 0x7FFF;
                 ptr += 2;
             }
 
             if(adap->adap_field_ext.flags & TSD_AFEF_PIECEWISE_RATE_FLAG) {
                 if(ptr+3 > end) return TSD_INVALID_DATA_SIZE;
-                uint32_t rate = parse_uint32(*((uint32_t*)ptr)) >> 8;
+                uint32_t rate = parse_u32(ptr) >> 8;
                 adap->adap_field_ext.piecewise_rate = rate & 0x3FFFFF;
                 ptr += 3;
             }
@@ -262,8 +266,8 @@ TSDCode tsd_parse_adaptation_field(TSDemuxContext *ctx,
                 if(ptr+5 > end) return TSD_INVALID_DATA_SIZE;
                 adap->adap_field_ext.splice_type = ((*ptr) >> 4) & 0x0F;
                 uint64_t au1 = (uint64_t) (((*ptr) >> 1) & 0x07);
-                uint64_t au2 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+1))) >> 1) & 0x7FFF);
-                uint64_t au3 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+3))) >> 1) & 0x7FFF);
+                uint64_t au2 = (uint64_t) ((parse_u16(ptr+1) >> 1) & 0x7FFF);
+                uint64_t au3 = (uint64_t) ((parse_u16(ptr+3) >> 1) & 0x7FFF);
                 adap->adap_field_ext.dts_next_au = (au1 << 30) | (au2 << 15) | au3;
             }
         }
@@ -367,7 +371,7 @@ TSDCode tsd_parse_table(TSDemuxContext *ctx,
         uint16_t table_ext = 0;
         uint8_t version = 0;
         if(ptr[1] & 0x80) {
-            table_ext = parse_uint16(*((uint16_t*)&ptr[3]));
+            table_ext = parse_u16(&ptr[3]);
             version = (ptr[5] & 0x3E) >> 1;
         }
 
@@ -402,7 +406,7 @@ TSDCode tsd_parse_table(TSDemuxContext *ctx,
     int section_count = 0;
 
     while(ptr < dataCtx->write) {
-        uint16_t section_len = parse_uint16(*((uint16_t*)(ptr+1)));
+        uint16_t section_len = parse_u16(ptr+1);
         section_len &= 0x0FFF;
         ptr += section_len + 3;
         section_count++;
@@ -455,7 +459,7 @@ TSDCode tsd_parse_table_sections(TSDemuxContext *ctx,
         ptr++;
         // section syntax indicator and private indicator
         section->flags = (int)(((*ptr) >> 6) & 0x03);
-        section->section_length = parse_uint16(*((uint16_t*)ptr)) & 0x0FFF;
+        section->section_length = parse_u16(ptr) & 0x0FFF;
         ptr+=2;
         if(&ptr[section->section_length] > end) {
             return TSD_INVALID_DATA_SIZE;
@@ -469,15 +473,14 @@ TSDCode tsd_parse_table_sections(TSDemuxContext *ctx,
             if((size_t)(end - ptr) < 9 || section->section_length < 9) {
                 return TSD_INVALID_DATA_SIZE;
             }
-            section->table_id_extension = parse_uint16(*((uint16_t*)(ptr)));
+            section->table_id_extension = parse_u16(ptr);
             section->version_number = ((*(ptr+2)) >> 1) & 0x1F;
             // current next indicator
             section->flags |= ((*(ptr+2)) & 0x01) << 2;
             section->section_number = *(ptr+3);
             section->last_section_number = *(ptr+4);
             section->section_data = ptr+5;
-            uint32_t *ptr32 = (uint32_t*)(&ptr[section->section_length - 4]);
-            section->crc_32 = parse_uint32(*ptr32);
+            section->crc_32 = parse_u32(&ptr[section->section_length - 4]);
             // the crc32 is not counted in the data
             section->section_data_length = section->section_length - 9;
         } else {
@@ -528,9 +531,9 @@ TSDCode tsd_parse_pat(TSDemuxContext *ctx,
 
     size_t i;
     for(i=pat->length; i < new_length; ++i) {
-        prog_data[i] = parse_uint16(*((uint16_t*)data));
+        prog_data[i] = parse_u16(data);
         data += 2;
-        pid_data[i] = parse_uint16(*((uint16_t*)data)) & 0x1FFF;
+        pid_data[i] = parse_u16(data) & 0x1FFF;
         data += 2;
     }
 
@@ -601,9 +604,9 @@ TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
     const uint8_t *ptr = data;
     const uint8_t *end = &ptr[size];
 
-    pmt->pcr_pid = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
+    pmt->pcr_pid = parse_u16(ptr) & 0x1FFF;
     ptr += 2;
-    pmt->program_info_length = parse_uint16(*((uint16_t*)ptr)) & 0x0FFF;
+    pmt->program_info_length = parse_u16(ptr) & 0x0FFF;
     ptr += 2;
 
     size_t desc_size = (size_t)pmt->program_info_length;
@@ -636,13 +639,13 @@ TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
     while(pe_ptr < pe_end) {
         ++count;
         pe_ptr += 3;
-        uint16_t len = parse_uint16(*((uint16_t*)pe_ptr)) & 0x0FFF;
+        uint16_t len = parse_u16(pe_ptr) & 0x0FFF;
         pe_ptr = &pe_ptr[len];
     }
 
     // there might not be any Program Elements
     if(count == 0) {
-        pmt->crc_32 = parse_uint32(*((uint32_t*)ptr));
+        pmt->crc_32 = parse_u32(ptr);
         return TSD_OK;
     }
 
@@ -663,9 +666,9 @@ TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
         TSDProgramElement *prog = &pmt->program_elements[i];
         prog->stream_type = *ptr;
         ptr++;
-        prog->elementary_pid = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
+        prog->elementary_pid = parse_u16(ptr) & 0x1FFF;
         ptr += 2;
-        prog->es_info_length = parse_uint16(*((uint16_t*)ptr)) & 0x0FFF;
+        prog->es_info_length = parse_u16(ptr) & 0x0FFF;
         ptr += 2;
         // parse the inner descriptors for each program as above,
         // find out how many there are, then allocate a single array
@@ -696,7 +699,7 @@ TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
         ptr = &ptr[desc_size];
     }
 
-    pmt->crc_32 = parse_uint32(*((uint32_t*)ptr));
+    pmt->crc_32 = parse_u32(ptr);
     return TSD_OK;
 }
 
@@ -715,13 +718,13 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
     const uint8_t *ptr = data;
     const uint8_t *end = &ptr[size];
 
-    uint32_t value = parse_uint32(*((uint32_t*)ptr));
+    uint32_t value = parse_u32(ptr);
     pes->start_code_prefix = (value >> 8);
     if(pes->start_code_prefix != 0x01) return TSD_INVALID_START_CODE_PREFIX;
 
     pes->stream_id = (uint8_t)(value & 0x000000FF);
     ptr = &ptr[4];
-    pes->packet_length = parse_uint16(*((uint16_t*)ptr));
+    pes->packet_length = parse_u16(ptr);
     ptr = &ptr[2];
 
     if(pes->stream_id == TSD_PSID_PADDING_STREAM) {
@@ -744,20 +747,20 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
         ptr++;
         if(pes->flags & TSD_PPF_PTS_FLAG) {
             uint64_t pts1 = (uint64_t) (((*ptr) >> 1) & 0x07);
-            uint64_t pts2 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+1))) >> 1) & 0x7FFF);
-            uint64_t pts3 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+3))) >> 1) & 0x7FFF);
+            uint64_t pts2 = (uint64_t) ((parse_u16(ptr+1) >> 1) & 0x7FFF);
+            uint64_t pts3 = (uint64_t) ((parse_u16(ptr+3) >> 1) & 0x7FFF);
             pes->pts = (pts1 << 30) | (pts2 << 15) | pts3;
             ptr = &ptr[5];
         }
         if(pes->flags & TSD_PPF_DTS_FLAG) {
             uint64_t dts1 = (uint64_t) (((*ptr) >> 1) & 0x07);
-            uint64_t dts2 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+1))) >> 1) & 0x7FFF);
-            uint64_t dts3 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+3))) >> 1) & 0x7FFF);
+            uint64_t dts2 = (uint64_t) ((parse_u16(ptr+1) >> 1) & 0x7FFF);
+            uint64_t dts3 = (uint64_t) ((parse_u16(ptr+3) >> 1) & 0x7FFF);
             pes->dts = (dts1 << 30) | (dts2 << 15) | dts3;
             ptr = &ptr[5];
         }
         if(pes->flags & TSD_PPF_ESCR_FLAG) {
-            uint64_t value = parse_uint64(*((uint64_t*)ptr));
+            uint64_t value = parse_u64(ptr);
             pes->escr = ((value >> 27) & 0x7FFFLL) |
                         (((value >> 43) & 0x7FFFLL) << 15) |
                         (((value >> 59) & 0x0007LL) << 30);
@@ -765,7 +768,7 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
             ptr = &ptr[6];
         }
         if(pes->flags & TSD_PPF_ES_RATE_FLAG) {
-            uint32_t value = parse_uint32(*((uint32_t*)ptr));
+            uint32_t value = parse_u32(ptr);
             pes->es_rate = (value >> 9) & 0x003FFFFF;
             ptr = &ptr[3];
         }
@@ -789,7 +792,7 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
             ptr++;
         }
         if(pes->flags & TSD_PPF_PES_CRC_FLAG) {
-            pes->previous_pes_packet_crc = parse_uint16(*((uint16_t*)ptr));
+            pes->previous_pes_packet_crc = parse_u16(ptr);
             ptr = &ptr[2];
         }
         if(pes->flags & TSD_PPF_PES_EXTENSION_FLAG) {
@@ -806,9 +809,9 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
                 TSDPackHeader *pheader = &pes->extension.pack_header;
                 pheader->length = *ptr;
                 ptr++;
-                pheader->pack_start_code = parse_uint32(*((uint32_t*)ptr));
+                pheader->pack_start_code = parse_u32(ptr);
                 ptr = &ptr[4];
-                uint64_t value = parse_uint64(*((uint64_t*)ptr));
+                uint64_t value = parse_u64(ptr);
                 pheader->system_clock_ref_base =
                     ((value >> 27) & 0x7FFFLL) |
                     (((value >> 43) & 0x7FFFLL) << 15) |
@@ -816,21 +819,21 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
                 pheader->system_clock_ref_ext =
                     (uint16_t)((value >> 17) & 0x01FFLL);
                 ptr = &ptr[6];
-                pheader->program_mux_rate = parse_uint32(*((uint32_t*)ptr)) >> 10;
+                pheader->program_mux_rate = parse_u32(ptr) >> 10;
                 ptr = &ptr[3];
                 pheader->stuffing_length = (*ptr) & 0x07;
                 // get past stuffing
                 ptr = &ptr[1 + pheader->stuffing_length];
                 // System Header
                 TSDSystemHeader *sysh = &pheader->system_header;
-                sysh->start_code = parse_uint32(*((uint32_t*)ptr));
+                sysh->start_code = parse_u32(ptr);
                 ptr = &ptr[4];
-                sysh->length = parse_uint16(*((uint16_t*)ptr));
+                sysh->length = parse_u16(ptr);
                 ptr = &ptr[2];
-                sysh->rate_bound = (parse_uint32(*((uint32_t*)ptr)) >> 10) & 0x003FFFFF;
+                sysh->rate_bound = (parse_u32(ptr) >> 10) & 0x003FFFFF;
                 ptr = &ptr[3];
                 sysh->audio_bound = (*ptr) >> 2;
-                sysh->flags = parse_uint32(*((uint32_t*)ptr)) & 0x03E08000;
+                sysh->flags = parse_u32(ptr) & 0x03E08000;
                 ptr++;
                 sysh->video_bound = (*ptr) & 0x1F;
                 ptr = &ptr[2];
@@ -848,7 +851,7 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
                             stream->stream_id = *ptr;
                             ptr++;
                             stream->pstd_buffer_bound_scale = ((*ptr) >> 5) & 0x01;
-                            stream->pstd_buffer_size_bound = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
+                            stream->pstd_buffer_size_bound = parse_u16(ptr) & 0x1FFF;
                             ptr = &ptr[2];
                         }
                     }
@@ -864,7 +867,7 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
             }
             if(pes->extension.flags & TSD_PEF_PSTD_BUFFER_FLAG) {
                 pes->extension.pstd_buffer_scale = ((*ptr) >> 5) & 0x01;
-                pes->extension.pstd_buffer_size = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
+                pes->extension.pstd_buffer_size = parse_u16(ptr) & 0x1FFF;
                 ptr = &ptr[2];
             }
             if(pes->extension.flags & TSD_PEF_PES_EXTENSION_FLAG_2) {
@@ -1087,7 +1090,7 @@ TSDCode demux_pat(TSDemuxContext *ctx, TSDPacket *hdr)
         // create PMT parsers for each of the Programs
         size_t pat_len = ctx->pat.value.length;
         if(ctx->pmt.capacity < pat_len) {
-            // free the existing data
+            // free the existing dat    a
             if(ctx->pmt.values) {
                 ctx->free(ctx->pmt.values);
                 ctx->pmt.values = NULL;
@@ -1314,7 +1317,7 @@ size_t tsd_demux(TSDemuxContext *ctx,
                         // packet
                         size_t data_len = dataCtx->write - dataCtx->buffer;
                         if(data_len > 5) {
-                            uint16_t pes_len = parse_uint16(*((uint16_t*)&dataCtx->buffer[5])) + 5;
+                            uint16_t pes_len = parse_u16(&dataCtx->buffer[5]) + 5;
                             if(data_len >= pes_len) {
                                 TSDPESPacket pes;
                                 res = tsd_parse_pes(ctx, dataCtx->buffer, data_len, &pes);

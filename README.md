@@ -36,6 +36,37 @@ It should be noted that development and testing by the author takes place on
 Linux (Debian), and to date, no compilation and testing has been on attempted
 on Little Endian Architectures.
 
+## Makefile Targets
+The Makefile contains the following targets:
+- `make static` builds only the static library.
+- `make tests` builds the static library and all unit tests.
+- `make examples` builds the static library and all examples.
+- `make all` or `make` builds all of the above.
+- `make check` builds static library and unit tests, then executes the tests.
+- `make style` runs an `astyle style=linux` pass on the source code.
+
+## Debugging
+To enable debugging add a `DEBUG=1` argument to the make target.
+This will cause the library, unit tests and examples to be built with debugging
+enabled.
+```
+ make all DEBUG=1
+```
+
+## Code Coverage
+To output HTML code coverage statistics, use the `COVERAGE=1` argument when
+using the `check` Make target.
+```
+ make clean
+ make check COVERAGE=1
+```
+The coverage documentation is output into a `coverage/html` directory.
+Failing to clean the project with `make clean` prior to running
+`make check COVERAGE=1` can cause an error to occur when generating the coverage
+documentation.
+
+The debug option `DEBUG=1` is automatically enabled when `COVERAGE=1` is set.
+
 ## Linux
 From a terminal:
 ```
@@ -43,34 +74,37 @@ From a terminal:
 ```
 Creates a `bin` directory containing static library and header files.
 This is no `install` step within the Makefile.
+If you are wanting to build files for debugging pass in a `DEBUG=1` argument.
+```
+ make DEBUG=1`
+```
 
 To clean the repository and start a build from scratch:
 ```
-  make clean
-  make
+ make clean
+ make
 ```
 
-To build and run all unit tests validating the build:
+To build and run all unit tests validating the library:
 ```
-  make check
+ make check
 ```
 The unit tests will abort as soon as an error is encountered leaving a message
 in the terminal.
 
 # Examples
-Examples showing how to use the library as in the `examples` directory.
+Examples showing how to use the library are in the `examples` directory.
 To build the examples:
 ```
  make examples
 ```
-The examples are also build when using the `all` target.
+The examples are also built when using the `all` target.
 
 The executables are built directly in the `examples` directory alongside the
 example source code.
-The examples and expecting to be run from the `examples` directory.
+The examples are expecting to be run from the root project directory.
 ```
- cd examples
- ./demux.o
+ ./examples/demux.o
 ```
 
 # Contributing
@@ -78,7 +112,7 @@ Before making Pull Requests into this repository for review, please complete
 the following steps.
 
 ## Code Style
-Run a pass on the source code to ensure basic common 'linux' styling using
+Run a pass on the source code to ensure basic 'linux' styling using
 `astyle`:
 ```
  sudo apt-get install astyle
@@ -86,15 +120,28 @@ Run a pass on the source code to ensure basic common 'linux' styling using
 ```
 
 ## Unit Tests
-Make sure all unit tests are passing, and provide new or modify existing unit
-tests, which cover code changes being made.
+Make sure all unit tests are passing.
+Ensure you provide new, or modify existing, unit tests covering any code
+changes.
 
 Build unit tests:
 ```
  make tests
 ```
 
-Build and run unit tests:
+Build and execute unit tests:
 ```
  make check
 ```
+
+See an existing unit test for guidance on writing unit tests.
+The framework is a very basic header file, `test/test.h`.
+
+## Valgrind - Memory Leaks
+It's generally a good idea to check for memory leaks by running the examples
+through Valgrind.
+```
+ valgrind --leak-check=yes ./examples/demux.o`
+```
+Not all warnings in Valgrind are valid errors, compare the results with the
+`master` branch.

@@ -28,6 +28,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+// Software version, format MAJOR.MINOR.PATCH
+#define TSD_VERSION                             "0.1.0"
+
 #define TSD_SYNC_BYTE                           (0x47)
 #define TSD_MESSAGE_LEN                         (128)
 #define TSD_TSPACKET_SIZE                       (188)
@@ -602,6 +605,15 @@ typedef struct TSDemuxContext {
     } buffers;
 
 } TSDemuxContext;
+
+/**
+ * Get software version.
+ * Gets the verison of the softare as a string.
+ * The format of the version is MAJOR.MINOR.PATCH where each of the
+ * sections are an integer.
+ * @return The version of the software as a string.
+ */
+const char* tsd_get_version(void);
 
 /**
  * Set Default Context.

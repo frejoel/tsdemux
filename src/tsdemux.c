@@ -39,6 +39,11 @@ uint64_t parse_uint32(uint32_t val)
 #endif
 }
 
+const char* tsd_get_version(void)
+{
+    return TSD_VERSION;
+}
+
 TSCode set_default_context(TSDemuxContext *ctx)
 {
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;

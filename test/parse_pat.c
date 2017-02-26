@@ -14,28 +14,28 @@ int main(int argc, char **argv)
 
 void test_parse_pat_input(void)
 {
-    test_start("parse_pat input");
+    test_start("tsd_parse_pat input");
 
     TSDemuxContext ctx;
-    PATData pat;
-    TSCode res;
+    TSDPATData pat;
+    TSDCode res;
 
-    set_default_context(&ctx);
+    tsd_set_default_context(&ctx);
     memset(&pat, 0, sizeof(pat));
 
     uint8_t data[] = {
         0xAB, 0xCD, 0xE6, 0x69,
     };
 
-    res = parse_pat(NULL, NULL, 0, NULL);
+    res = tsd_parse_pat(NULL, NULL, 0, NULL);
     test_assert_equal(TSD_INVALID_CONTEXT, res, "invalid context");
-    res = parse_pat(&ctx, NULL, 0, NULL);
+    res = tsd_parse_pat(&ctx, NULL, 0, NULL);
     test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
-    res = parse_pat(&ctx, data, 3, NULL);
+    res = tsd_parse_pat(&ctx, data, 3, NULL);
     test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid size");
-    res = parse_pat(&ctx, data, sizeof(data), NULL);
+    res = tsd_parse_pat(&ctx, data, sizeof(data), NULL);
     test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
-    res = parse_pat(&ctx, data, sizeof(data), &pat);
+    res = tsd_parse_pat(&ctx, data, sizeof(data), &pat);
     test_assert_equal(TSD_OK, res, "successful parse");
     test_assert_equal(1, pat.length, "length");
     test_assert_equal(0xABCD, pat.program_number[0], "program number");
@@ -46,13 +46,13 @@ void test_parse_pat_input(void)
 
 void test_parse_pat_data(void)
 {
-    test_start("parse_pat data");
+    test_start("tsd_parse_pat data");
 
     TSDemuxContext ctx;
-    PATData pat;
-    TSCode res;
+    TSDPATData pat;
+    TSDCode res;
 
-    set_default_context(&ctx);
+    tsd_set_default_context(&ctx);
     memset(&pat, 0, sizeof(pat));
 
     uint8_t data[] = {
@@ -63,7 +63,7 @@ void test_parse_pat_data(void)
         0x12, 0x34, 0xE0, 0xBB,
     };
 
-    res = parse_pat(&ctx, data, sizeof(data), &pat);
+    res = tsd_parse_pat(&ctx, data, sizeof(data), &pat);
     test_assert_equal(TSD_OK, res, "successful parse");
     test_assert_equal(2, pat.length, "length");
     test_assert_equal(0xFEDC, pat.program_number[0], "program number 1");
@@ -71,7 +71,7 @@ void test_parse_pat_data(void)
     test_assert_equal(0x9876, pat.program_number[1], "program number 2");
     test_assert_equal(0x0001, pat.pid[1], "pid 2");
 
-    res = parse_pat(&ctx, data2, sizeof(data2), &pat);
+    res = tsd_parse_pat(&ctx, data2, sizeof(data2), &pat);
     test_assert_equal(TSD_OK, res, "successful parse");
     test_assert_equal(3, pat.length, "length");
     test_assert_equal(0xFEDC, pat.program_number[0], "program number 1");

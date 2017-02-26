@@ -7,8 +7,8 @@
 
 #include <tsdemux.h>
 
-// demux callback (see set_event_callback for details).
-void event_cb(TSDemuxContext *ctx, EventId event_id, void *data);
+// demux callback (see tsd_set_event_callback for details).
+void event_cb(TSDemuxContext *ctx, TSDEventId event_id, void *data);
 // prints information about a PAT.
 void print_pat(TSDemuxContext *ctx, void *data);
 // prints information about a PMT.
@@ -19,12 +19,12 @@ int main(int argc, char **charv) {
     // create a demuxing context.
     TSDemuxContext ctx;
     // set default values onto the context.
-    set_default_context(&ctx);
+    tsd_set_default_context(&ctx);
 
     // add a callback.
     // the callback is used to determine which PIDs contain the data we want
     // to demux. We also receive PES data for any PIDs that we register later on.
-    set_event_callback(&ctx, event_cb);
+    tsd_set_event_callback(&ctx, event_cb);
 
     // we'll be a using a TS file from disk.
     //FILE *fp = fopen("../test/data/media_0_0.ts", "rb");
@@ -45,8 +45,8 @@ int main(int argc, char **charv) {
         count = fread(&buffer[count - parsed], 1, 1880 - (count - parsed), fp);
 
         // with res, we could report any errors found during demuxing
-        TSCode res;
-        parsed = demux(&ctx, buffer, count, &res);
+        TSDCode res;
+        parsed = tsd_demux(&ctx, buffer, count, &res);
         // during 'demux' our callback may be called, so we can safely discard
         // our buffer.
         // we'll copy any unused bytes back into the start of the buffer.
@@ -63,14 +63,14 @@ int main(int argc, char **charv) {
     return 0;
 }
 
-void event_cb(TSDemuxContext *ctx, EventId event_id, void *data)
+void event_cb(TSDemuxContext *ctx, TSDEventId event_id, void *data)
 {
     if(event_id == TSD_EVENT_PAT) {
         print_pat(ctx, data);
     }else if(event_id == TSD_EVENT_PMT){
         print_pmt(ctx, data);
     }else if(event_id == TSD_EVENT_PID) {
-        PESPacket *pes = (PESPacket*) data;
+        TSDPESPacket *pes = (TSDPESPacket*) data;
         // TODO: This is where we would write the PES data into our buffer
         //printf("\n====================\n");
         //printf("PES stream id: %04X\n", pes->stream_id);
@@ -79,7 +79,7 @@ void event_cb(TSDemuxContext *ctx, EventId event_id, void *data)
 
 void print_pat(TSDemuxContext *ctx, void *data) {
     printf("\n====================\n");
-    PATData *pat = (PATData*)data;
+    TSDPATData *pat = (TSDPATData*)data;
     size_t len = pat->length;
     size_t i;
     printf("PAT, Length %d\n", pat->length);
@@ -95,14 +95,14 @@ void print_pat(TSDemuxContext *ctx, void *data) {
 void print_pmt(TSDemuxContext *ctx, void *data) {
     printf("\n====================\n");
     printf("PMT\n");
-    PMTData *pmt = (PMTData*)data;
+    TSDPMTData *pmt = (TSDPMTData*)data;
     printf("PCR PID: %04X\n", pmt->pcr_pid);
     printf("program info length: %d\n", pmt->program_info_length);
     printf("descriptors length: %d\n", pmt->descriptors_length);
     size_t i;
 
     for(i=0;i<pmt->descriptors_length;++i) {
-        Descriptor *des = &pmt->descriptors[i];
+        TSDDescriptor *des = &pmt->descriptors[i];
         printf("  %d) tag: 0x%04X, length: %d\n", i, des->tag, des->length);
         if(des->tag == 0x05) {
             printf("    0x%02x 0x%02x 0x%02x 0x%02x\n", des->data[0], des->data[1], des->data[2], des->data[3]);
@@ -111,7 +111,7 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
 
     printf("program elements length: %d\n", pmt->program_elements_length);
     for(i=0;i<pmt->program_elements_length; ++i) {
-        ProgramElement *prog = &pmt->program_elements[i];
+        TSDProgramElement *prog = &pmt->program_elements[i];
         printf("  -----\nProgram #%d\n", i);
         printf("  stream type: %04X\n", prog->stream_type);
         printf("  elementary pid: %04X\n", prog->elementary_pid);
@@ -120,7 +120,7 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
         size_t j;
 
         for(j=0;j<prog->descriptors_length;++j) {
-            Descriptor *des = &prog->descriptors[j];
+            TSDDescriptor *des = &prog->descriptors[j];
             printf("    %d) tag: 0x%04X, length: %d\n", j, des->tag, des->length);
         }
 
@@ -128,7 +128,7 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
         // this will cause the demuxer to call this callback if it finds
         // any PES data associated with this PID.
         if(prog->stream_type == 0x00) {
-            register_pid(ctx, prog->elementary_pid);
+            tsd_register_pid(ctx, prog->elementary_pid);
         }
     }
 }

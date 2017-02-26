@@ -35,7 +35,7 @@
 #define TSD_MESSAGE_LEN                         (128)
 #define TSD_TSPACKET_SIZE                       (188)
 #define TSD_DEFAULT_DATA_CONTEXT_SIZE           (256)
-#define MAX_PID_REGISTRATIONS                   (16)
+#define TSD_MAX_PID_REGS                        (16)
 
 /**
  * @file
@@ -45,10 +45,10 @@
 
 // forward declarations
 typedef struct TSDemuxContext TSDemuxContext;
-typedef struct Table Table;
-typedef struct TableSection TableSection;
+typedef struct TSDTable TSDTable;
+typedef struct TSDTableSection TSDTableSection;
 
-typedef enum EventId EventId;
+typedef enum TSDEventId TSDEventId;
 
 /**
  * Memory Allocator.
@@ -80,13 +80,13 @@ typedef void (*tsd_free) (void *mem);
  * Event Callback.
  */
 typedef void (*tsd_on_event) (TSDemuxContext *ctx,
-                              EventId id,
+                              TSDEventId id,
                               void *data);
 
 /**
  * Return codes.
  */
-typedef enum TSCode {
+typedef enum TSDCode {
     TSD_OK                                    = 0x0000,
     TSD_INVALID_SYNC_BYTE                     = 0x0001,
     TSD_INVALID_CONTEXT                       = 0x0002,
@@ -99,229 +99,229 @@ typedef enum TSCode {
     TSD_NOT_A_TABLE_PACKET                    = 0x0009,
     TSD_PARSE_ERROR                           = 0x000A,
     TSD_PID_ALREADY_REGISTERED                = 0x000B,
-    TSD_MAX_PID_REGISTRATIONS_REACHED         = 0x000C,
+    TSD_TSD_MAX_PID_REGS_REACHED              = 0x000C,
     TSD_PID_NOT_FOUND                         = 0x000D,
     TSD_INVALID_POINTER_FIELD                 = 0x000E,
-} TSCode;
+} TSDCode;
 
 /**
  * Transport Stream Packet Flags.
  */
-typedef enum TSPacketFlags {
-    TSPF_TRANSPORT_ERROR_INDICATOR            = 0x04,
-    TSPF_PAYLOAD_UNIT_START_INDICATOR         = 0x02,
-    TSPF_TRANSPORT_PRIORITY                   = 0x01,
-} TSPacketFlags;
+typedef enum TSDPacketFlags {
+    TSD_PF_TRAN_ERR_INDICATOR                 = 0x04,
+    TSD_PF_PAYLOAD_UNIT_START_IND             = 0x02,
+    TSD_PF_TRAN_PRIORITY                      = 0x01,
+} TSDPacketFlags;
 
 /**
  * Adaptation Field Control.
  */
-typedef enum AdaptionFieldControl {
-    AFC_RESERVED                              = 0x00,
-    AFC_NO_FIELD_PRESENT                      = 0x01,
-    AFC_ADAPTATION_FIELD_ONLY                 = 0x02,
-    AFC_ADAPTATION_FIELD_AND_PAYLOAD          = 0x03,
-} AdaptionFieldControl;
+typedef enum TSDAdaptionFieldControl {
+    TSD_AFC_RESERVED                          = 0x00,
+    TSD_AFC_NO_FIELD_PRESENT                  = 0x01,
+    TSD_AFC_ADAP_FIELD_ONLY                   = 0x02,
+    TSD_AFC_ADAP_FIELD_AND_PAYLOAD            = 0x03,
+} TSDAdaptionFieldControl;
 
 /**
  * Transport Scrambling Control.
  */
-typedef enum ScramblingControl {
+typedef enum TSDScramblingControl {
     /** No scrambling of packet payload **/
-    SC_NO_SCRAMBLING                          = 0x00,
+    TSD_SC_NO_SCRAMBLING                          = 0x00,
     /** Reserved **/
-    SC_RESERVED                               = 0x01,
+    TSD_SC_RESERVED                               = 0x01,
     /** Transport Packet scrambled with Even key. **/
-    SC_EVEN_KEY                               = 0x02,
+    TSD_SC_EVEN_KEY                               = 0x02,
     /** Transport Packet scrambled with Odd key. **/
-    SC_ODD_KEY                                = 0x03,
-} ScramblingControl;
+    TSD_SC_ODD_KEY                                = 0x03,
+} TSDScramblingControl;
 
 /**
  * PID Value Allocations
  */
-typedef enum PIDValueAllocation {
-    /** Program Association Table **/
-    PID_PAT                                   = 0x0000,
-    /** Conditional Access Table **/
-    PID_CAT                                   = 0x0001,
-    /** Transport Stream Description Table **/
-    PID_TSDT                                  = 0x0002,
+typedef enum TSDPIDValue {
+    /** Program Association TSDTable **/
+    TSD_PID_PAT                                   = 0x0000,
+    /** Conditional Access TSDTable **/
+    TSD_PID_CAT                                   = 0x0001,
+    /** Transport Stream Description TSDTable **/
+    TSD_PID_TSDT                                  = 0x0002,
     /** MPEG-2 Systems Reserved **/
-    PID_RESERVED_MPEG2                        = 0x000F,
+    TSD_PID_RESERVED_MPEG2                        = 0x000F,
     /** DVB Service Information **/
-    PID_RESERVED_DVB_SI                       = 0x001F,
+    TSD_PID_RESERVED_DVB_SI                       = 0x001F,
     /** ARIB Service Information **/
-    PID_RESERVED_ARIB_SI                      = 0x002F,
+    TSD_PID_RESERVED_ARIB_SI                      = 0x002F,
     /** Set aside for non ATSC Use **/
-    PID_RESERVED_NON_ATSC                     = 0x004F,
+    TSD_PID_RESERVED_NON_ATSC                     = 0x004F,
     /** Available for general purpose **/
-    PID_GENERAL_PURPOSE                       = 0x1FEF,
+    TSD_PID_GENERAL_PURPOSE                       = 0x1FEF,
     /** Reserved for possible future use by ATSC and/or SCTE **/
-    PID_RESERVED_FUTURE                       = 0x1FFA,
+    TSD_PID_RESERVED_FUTURE                       = 0x1FFA,
     /** ATSC PSIP tables **/
-    PID_ATSC_PSIP_SI                          = 0x1FFB,
+    TSD_PID_ATSC_PSIP_SI                          = 0x1FFB,
     /** Used by now-obsolete ATSC A/55 and A/56 standards **/
-    PID_RESERVED_ATSC                         = 0x1FFD,
+    TSD_PID_RESERVED_ATSC                         = 0x1FFD,
     /** OpenCable Data-Over-Cable Service Interface **/
-    PID_DOCSIS                                = 0x1FFE,
+    TSD_PID_DOCSIS                                = 0x1FFE,
     /** Identifies Null Packets **/
-    PID_NULL_PACKETS                          = 0x1FFF,
-} PIDValueAllocation;
+    TSD_PID_NULL_PACKETS                          = 0x1FFF,
+} TSDPIDValue;
 
 /**
  * Adaptation Field Flags.
  */
-typedef enum AdaptationFieldFlags {
-    AF_DISCONTINUITY_INDICATOR                = 0x80,
-    AF_RANDOM_ACCESS_INDICATOR                = 0x40,
-    AF_ELEMENTARY_STREAM_PRIORIY_INDICATOR    = 0x20,
-    AF_PCR_FLAG                               = 0x10,
-    AF_OPCR_FLAG                              = 0x08,
-    AF_SPLICING_POINT_FLAG                    = 0x04,
-    AF_TRANSPORT_PRIVATE_DATA_FLAG            = 0x02,
-    AF_ADAPTATION_FIELD_EXTENSION_FLAG        = 0x01,
-} AdaptationFieldFlags;
+typedef enum TSDAdaptationFieldFlags {
+    TSD_AF_DISCON_IND                             = 0x80,
+    TSD_AF_RANDOM_ACCESS_IND                      = 0x40,
+    TSD_AF_ELEM_STREAM_PRIORIY_IND                = 0x20,
+    TSD_AF_PCR_FLAG                               = 0x10,
+    TSD_AF_OPCR_FLAG                              = 0x08,
+    TSD_AF_SPLICING_POINT_FLAG                    = 0x04,
+    TSD_AF_TRAN_PRIVATE_DATA_FLAG                 = 0x02,
+    TSD_AF_ADAP_FIELD_EXT_FLAG                    = 0x01,
+} TSDAdaptationFieldFlags;
 
 /**
  * Adaptation Field Extensions Flags.
  */
-typedef enum AdaptationFieldExtensionFlags {
-    AFEF_LTW_FLAG                             = 0x04,
-    AFEF_PIECEWISE_RATE_FLAG                  = 0x02,
-    AFEF_SEAMLESS_SPLCE_FLAG                  = 0x01,
-} AdaptationFieldExtensionFlags;
+typedef enum TSDAdaptationFieldExtensionFlags {
+    TSD_AFEF_LTW_FLAG                             = 0x04,
+    TSD_AFEF_PIECEWISE_RATE_FLAG                  = 0x02,
+    TSD_AFEF_SEAMLESS_SPLCE_FLAG                  = 0x01,
+} TSDAdaptationFieldExtensionFlags;
 
 /**
  * PES Stream Id.
  */
-typedef enum PESStreamId {
-    PSID_PROGRAM_STREAM_MAP                   = 0xBC,
-    PSID_PRIV_STREAM_1                        = 0xBD,
-    PSID_PADDING_STREAM                       = 0xBE,
-    PSID_PRIV_STREAM_2                        = 0xBF,
-    PSID_AUDIO                                = 0xC0,
-    PSID_AUDIO_MASK                           = 0xE0,
-    PSID_VIDEO                                = 0xE0,
-    PSID_VIDEO_MASK                           = 0xF0,
-    PSID_ECM                                  = 0xF0,
-    PSID_EMM                                  = 0xF1,
-    PSID_DSMCC                                = 0xF2,
-    PSID_13522                                = 0xF3,
-    PSID_H2221_TYPE_A                         = 0xF4,
-    PSID_H2221_TYPE_B                         = 0xF5,
-    PSID_H2221_TYPE_C                         = 0xF6,
-    PSID_H2221_TYPE_D                         = 0xF7,
-    PSID_H2221_TYPE_E                         = 0xF8,
-    PSID_ANCILLARY                            = 0xF9,
-    PSID_SL_PACKETIZED                        = 0xFA,
-    PSID_FLEX_MUX                             = 0xFB,
-    PSID_RESERVED                             = 0xFC,
-    PSID_STREAM_DIRECTORY                     = 0xFF,
-} PESStreamId;
+typedef enum TSDPESStreamId {
+    TSD_PSID_PROGRAM_STREAM_MAP                   = 0xBC,
+    TSD_PSID_PRIV_STREAM_1                        = 0xBD,
+    TSD_PSID_PADDING_STREAM                       = 0xBE,
+    TSD_PSID_PRIV_STREAM_2                        = 0xBF,
+    TSD_PSID_AUDIO                                = 0xC0,
+    TSD_PSID_AUDIO_MASK                           = 0xE0,
+    TSD_PSID_VIDEO                                = 0xE0,
+    TSD_PSID_VIDEO_MASK                           = 0xF0,
+    TSD_PSID_ECM                                  = 0xF0,
+    TSD_PSID_EMM                                  = 0xF1,
+    TSD_PSID_DSMCC                                = 0xF2,
+    TSD_PSID_13522                                = 0xF3,
+    TSD_PSID_H2221_TYPE_A                         = 0xF4,
+    TSD_PSID_H2221_TYPE_B                         = 0xF5,
+    TSD_PSID_H2221_TYPE_C                         = 0xF6,
+    TSD_PSID_H2221_TYPE_D                         = 0xF7,
+    TSD_PSID_H2221_TYPE_E                         = 0xF8,
+    TSD_PSID_ANCILLARY                            = 0xF9,
+    TSD_PSID_SL_PACKETIZED                        = 0xFA,
+    TSD_PSID_FLEX_MUX                             = 0xFB,
+    TSD_PSID_RESERVED                             = 0xFC,
+    TSD_PSID_STREAM_DIRECTORY                     = 0xFF,
+} TSDPESStreamId;
 
 /**
  * PES Scrambling Control.
  */
-typedef enum PESScramblingControl {
-    PSC_NOT_SCRAMBLED                         = 0x00,
-    PSC_USER_DEFINED_1                        = 0x01,
-    PSC_USER_DEFINED_2                        = 0x02,
-    PSC_USER_DEFINED_3                        = 0x03,
-} PESScramblingControl;
+typedef enum TSDPESScramblingControl {
+    TSD_PSCNOT_SCRAMBLED                         = 0x00,
+    TSD_PSCUSER_DEFINED_1                        = 0x01,
+    TSD_PSCUSER_DEFINED_2                        = 0x02,
+    TSD_PSCUSER_DEFINED_3                        = 0x03,
+} TSDPESScramblingControl;
 
 /**
  * PES Packaet Flags.
  */
-typedef enum PESPacketFlags {
-    PPF_PES_PRIORITY                          = 0x0800,
-    PPF_DATA_ALIGNMENT_INDICATOR              = 0x0400,
-    PPF_COPYRIGHT                             = 0x0200,
-    PPF_ORIGINAL_OR_COPY                      = 0x0100,
-    PPF_PTS_FLAG                              = 0x0080,
-    PPF_DTS_FLAG                              = 0x0040,
-    PPF_ESCR_FLAG                             = 0x0020,
-    PPF_ES_RATE_FLAG                          = 0x0010,
-    PPF_DSM_TRICK_MODE_FLAG                   = 0x0008,
-    PPF_ADDITIONAL_COPY_INFO_FLAG             = 0x0004,
-    PPF_PES_CRC_FLAG                          = 0x0002,
-    PPF_PES_EXTENSION_FLAG                    = 0x0001,
-} PESPacketFlags;
+typedef enum TSDPESPacketFlags {
+    TSD_PPF_PES_PRIORITY                          = 0x0800,
+    TSD_PPF_DATA_ALIGNMENT_INDICATOR              = 0x0400,
+    TSD_PPF_COPYRIGHT                             = 0x0200,
+    TSD_PPF_ORIGINAL_OR_COPY                      = 0x0100,
+    TSD_PPF_PTS_FLAG                              = 0x0080,
+    TSD_PPF_DTS_FLAG                              = 0x0040,
+    TSD_PPF_ESCR_FLAG                             = 0x0020,
+    TSD_PPF_ES_RATE_FLAG                          = 0x0010,
+    TSD_PPF_DSM_TRICK_MODE_FLAG                   = 0x0008,
+    TSD_PPF_ADDITIONAL_COPY_INFO_FLAG             = 0x0004,
+    TSD_PPF_PES_CRC_FLAG                          = 0x0002,
+    TSD_PPF_PES_EXTENSION_FLAG                    = 0x0001,
+} TSDPESPacketFlags;
 
 /**
  * Trick Mode Control.
  */
-typedef enum TrickModeControl {
-    TMC_FAST_FORWARD                          = 0x00,
-    TMC_SLOW_MOTION                           = 0x01,
-    TMC_FREEZE_FRAME                          = 0x02,
-    TMC_FAST_REVERSE                          = 0x03,
-    TMC_SLOW_REVERSE                          = 0x04,
-} TrickModeControl;
+typedef enum TSDTrickModeControl {
+    TSD_TMC_FAST_FORWARD                          = 0x00,
+    TSD_TMC_SLOW_MOTION                           = 0x01,
+    TSD_TMC_FREEZE_FRAME                          = 0x02,
+    TSD_TMC_FAST_REVERSE                          = 0x03,
+    TSD_TMC_SLOW_REVERSE                          = 0x04,
+} TSDTrickModeControl;
 
 /**
  * PES Extension Flags.
  */
-typedef enum PESExtensionFlags {
-    PEF_PES_PRIVATE_DATA_FLAG                 = 0x08,
-    PEF_PACK_HEADER_FIELD_FLAG                = 0x07,
-    PEF_PROGRAM_PACKET_SEQUENCE_COUNTER_FLAG  = 0x06,
-    PEF_PSTD_BUFFER_FLAG                      = 0x05,
-    PEF_PES_EXTENSION_FLAG_2                  = 0x01,
-} PESExtensionFlags;
+typedef enum TSDPESExtensionFlags {
+    TSD_PEF_PES_PRIVATE_DATA_FLAG                 = 0x08,
+    TSD_PEF_PACK_HEADER_FIELD_FLAG                = 0x07,
+    TSD_PEF_PROGRAM_PACKET_SEQUENCE_COUNTER_FLAG  = 0x06,
+    TSD_PEF_PSTD_BUFFER_FLAG                      = 0x05,
+    TSD_PEF_PES_EXTENSION_FLAG_2                  = 0x01,
+} TSDPESExtensionFlags;
 
 /**
  * System Header Flags.
  */
-typedef enum SystemHeaderFlags {
-    SHF_FIXED_FLAG                            = 0x02000000,
-    SHF_CSPS_FLAG                             = 0x01000000,
-    SHF_SYSTEM_AUDIO_LOCK_FLAG                = 0x00800000,
-    SHF_SYSTEM_VIDEO_LOCK_FLAG                = 0x00400000,
-    SHF_PACKET_RATE_RESTICTION_FLAG           = 0x00010000,
-} SystemHeaderFlags;
+typedef enum TSDSystemHeaderFlags {
+    TSD_SHF_FIXED_FLAG                            = 0x02000000,
+    TSD_SHF_CSPS_FLAG                             = 0x01000000,
+    TSD_SHF_SYSTEM_AUDIO_LOCK_FLAG                = 0x00800000,
+    TSD_SHF_SYSTEM_VIDEO_LOCK_FLAG                = 0x00400000,
+    TSD_SHF_PACKET_RATE_RESTICTION_FLAG           = 0x00010000,
+} TSDSystemHeaderFlags;
 
 /**
- * Table Flags.
+ * TSDTable Flags.
  */
-typedef enum TableFlags {
-    TBL_PRIVATE_INDICATOR                     = 0x01,
-    TBL_SECTION_SYNTAX_INDICATOR              = 0x02,
-    TBL_CURRENT_NEXT_INDICATOR                = 0x04,
-} TableFlags;
+typedef enum TSDTableFlags {
+    TSD_TBL_PRIVATE_INDICATOR                     = 0x01,
+    TSD_TBL_SECTION_SYNTAX_INDICATOR              = 0x02,
+    TSD_TBL_CURRENT_NEXT_INDICATOR                = 0x04,
+} TSDTableFlags;
 
 /**
  * Event Id.
  * The Id of all events that may occur during demux.
  */
-typedef enum EventId {
+typedef enum TSDEventId {
     TSD_EVENT_PAT                            = 0x0001,
     TSD_EVENT_PMT                            = 0x0002,
     TSD_EVENT_CAT                            = 0x0004,
     TSD_EVENT_TSDT                           = 0x0008,
-    /// Unsupported Table
+    /// Unsupported TSDTable
     TSD_EVENT_TABLE                          = 0x0010,
     // User Registered PID data
     TSD_EVENT_PID                            = 0x0020,
-} EventId;
+} TSDEventId;
 
 /**
  * Data Context.
  * Used to persist the session when streaming TS packets through the demux in
  * multiple calls.
  */
-typedef struct DataContext {
+typedef struct TSDDataContext {
     uint8_t *buffer;
     uint8_t *write;
     uint8_t *end;
     size_t size;
     uint32_t id;
-} DataContext;
+} TSDDataContext;
 
 /**
  * Adaptation Field Extension.
  */
-typedef struct AdaptationFieldExtension {
+typedef struct TSDAdaptationFieldExtension {
     uint8_t length;
     int flags;
     // ltw_flag == '1'
@@ -332,68 +332,68 @@ typedef struct AdaptationFieldExtension {
     // seamless_splice_flag == '1'
     uint8_t splice_type;
     uint64_t dts_next_au;
-} AdaptationFieldExtension;
+} TSDAdaptationFieldExtension;
 
 /**
  * Adaptation Field.
  */
-typedef struct AdaptationField {
+typedef struct TSDAdaptationField {
     uint8_t adaptation_field_length;
     int flags;
     // PCR == '1'
-    uint64_t program_clock_reference_base;
-    uint16_t program_clock_reference_extension;
+    uint64_t program_clock_ref_base;
+    uint16_t program_clock_ref_ext;
     // OPCR == '1'
-    uint64_t original_program_clock_reference_base;
-    uint16_t original_program_clock_reference_extension;
+    uint64_t orig_program_clock_ref_base;
+    uint16_t orig_program_clock_ref_ext;
     // splicing_point_fag == '1'
     uint8_t splice_countdown;
     // transport provate data flag == '1'
     uint8_t transport_private_data_length;
     const uint8_t *private_data_byte;
     // adaptation_field_extension_flag == '1'
-    AdaptationFieldExtension adaptation_field_extension;
-} AdaptationField;
+    TSDAdaptationFieldExtension adap_field_ext;
+} TSDAdaptationField;
 
 /**
  * Transport Stream Packet Header.
  */
-typedef struct TSPacket {
+typedef struct TSDPacket {
     uint8_t sync_byte;
     int flags;
     uint16_t pid;
-    ScramblingControl transport_scrambling_control;
-    AdaptionFieldControl adaptation_field_control;
+    TSDScramblingControl transport_scrambling_control;
+    TSDAdaptionFieldControl adaptation_field_control;
     uint8_t continuity_counter;
-    AdaptationField adaptation_field;
+    TSDAdaptationField adaptation_field;
     const uint8_t *data_bytes;
     size_t data_bytes_length;
-} TSPacket;
+} TSDPacket;
 
 /**
  * DSM Trick Mode.
  */
-typedef struct DSMTrickMode {
-    TrickModeControl control;
+typedef struct TSDDSMTrickMode {
+    TSDTrickModeControl control;
     uint8_t field_id;
     uint8_t intra_slice_refresh;
     uint8_t frequency_truncation;
     uint8_t rep_cntrl;
-} DSMTrickMode;
+} TSDDSMTrickMode;
 
 /**
  * System Header Stream.
  */
-typedef struct SystemHeaderStream {
+typedef struct TSDSystemHeaderStream {
     uint8_t stream_id;
     uint8_t pstd_buffer_bound_scale;
     uint8_t pstd_buffer_size_bound;
-} SystemHeaderStream;
+} TSDSystemHeaderStream;
 
 /**
  * Program Stream System Header.
  */
-typedef struct SystemHeader {
+typedef struct TSDSystemHeader {
     uint32_t start_code;
     uint16_t length;
     uint32_t rate_bound;
@@ -401,46 +401,46 @@ typedef struct SystemHeader {
     int flags;
     uint8_t video_bound;
     size_t stream_count;
-    SystemHeaderStream *streams;
-} SystemHeader;
+    TSDSystemHeaderStream *streams;
+} TSDSystemHeader;
 
 /**
  * Program Stream Pack Header.
  */
-typedef struct PackHeader {
+typedef struct TSDPackHeader {
     uint8_t length;
     uint32_t pack_start_code;
-    uint64_t system_clock_reference_base;
-    uint16_t system_clock_reference_extension;
+    uint64_t system_clock_ref_base;
+    uint16_t system_clock_ref_ext;
     uint32_t program_mux_rate;
     uint8_t stuffing_length;
     uint32_t system_header_start_code;
-    SystemHeader system_header;
-} PackHeader;
+    TSDSystemHeader system_header;
+} TSDPackHeader;
 
 /**
  * PES Extension.
  */
-typedef struct PESExtension {
+typedef struct TSDPESExtension {
     int flags;
     uint8_t pes_private_data[16]; // 128 bits
-    PackHeader pack_header;
+    TSDPackHeader pack_header;
     uint8_t program_packet_sequence_counter;
     int mpeg1_mpeg2_identifier;
     uint8_t original_stuff_length;
     int pstd_buffer_scale;
     uint16_t pstd_buffer_size;
     uint8_t pes_extension_field_length;
-} PESExtension;
+} TSDPESExtension;
 
 /**
  * PES Packet.
  */
-typedef struct PESPacket {
+typedef struct TSDPESPacket {
     uint32_t start_code_prefix;
     uint8_t stream_id;
     uint16_t packet_length;
-    PESScramblingControl scrambling_control;
+    TSDPESScramblingControl scrambling_control;
     int flags;
     uint8_t header_data_length;
     uint64_t pts;
@@ -448,19 +448,19 @@ typedef struct PESPacket {
     uint64_t escr;
     uint16_t escr_extension;
     uint32_t es_rate;
-    DSMTrickMode trick_mode;
+    TSDDSMTrickMode trick_mode;
     uint8_t additional_copy_info;
     uint16_t previous_pes_packet_crc;
-    PESExtension extension;
+    TSDPESExtension extension;
     const uint8_t *data_bytes;
     size_t data_bytes_length;
-} PESPacket;
+} TSDPESPacket;
 
 /**
- * Table Section.
+ * TSDTable Section.
  * Represents any short or long form table section, both PSI and private.
  */
-typedef struct TableSection {
+typedef struct TSDTableSection {
     uint8_t table_id;
     int flags;
     uint16_t section_length;
@@ -471,84 +471,84 @@ typedef struct TableSection {
     uint32_t crc_32;
     uint8_t *section_data;
     size_t section_data_length;
-} TableSection;
+} TSDTableSection;
 
 /**
- * Table.
+ * TSDTable.
  * Represents a table which is made up of multiple sections.
  */
-typedef struct Table {
-    TableSection *sections;
+typedef struct TSDTable {
+    TSDTableSection *sections;
     size_t length;
-} Table;
+} TSDTable;
 
 /**
  * PAT Data.
- * PAT Data extracted from PAT Table Sections.
+ * PAT Data extracted from PAT TSDTable Sections.
  */
-typedef struct PATData {
+typedef struct TSDPATData {
     uint16_t *program_number;
     uint16_t *pid;
     size_t length;
-} PATData;
+} TSDPATData;
 
 /**
- * PMT Descriptor.
- * Outter or Inner Descriptor found within the PMT.
+ * PMT TSDDescriptor.
+ * Outter or Inner TSDDescriptor found within the PMT.
  */
-typedef struct Descriptor {
+typedef struct TSDDescriptor {
     uint8_t tag;
     uint8_t length;
     const uint8_t *data;
-} Descriptor;
+} TSDDescriptor;
 
 /**
  * Program Element.
  * Description of a Program from the PMT.
  */
-typedef struct ProgramElement {
+typedef struct TSDProgramElement {
     uint8_t stream_type;
     uint16_t elementary_pid;
     uint16_t es_info_length;
-    Descriptor *descriptors;
+    TSDDescriptor *descriptors;
     size_t descriptors_length;
-} ProgramElement;
+} TSDProgramElement;
 
 /**
  * PMT Data.
- * PMT Data extracted from PMT Table Sections.
+ * PMT Data extracted from PMT TSDTable Sections.
  */
-typedef struct PMTData {
+typedef struct TSDPMTData {
     uint16_t pcr_pid;
     uint16_t program_info_length;
-    Descriptor *descriptors;
+    TSDDescriptor *descriptors;
     size_t descriptors_length;
-    ProgramElement *program_elements;
+    TSDProgramElement *program_elements;
     size_t program_elements_length;
     uint32_t crc_32;
-} PMTData;
+} TSDPMTData;
 
 /**
  * Descritor Data.
- * Descriptor Data extracted from Table Sections.
+ * TSDDescriptor Data extracted from TSDTable Sections.
  */
-typedef struct DescriptorData {
-    Descriptor *descriptors;
+typedef struct TSDDescriptorData {
+    TSDDescriptor *descriptors;
     size_t descriptors_length;
-} DescriptorData;
+} TSDDescriptorData;
 
-typedef DescriptorData CATData;
-typedef DescriptorData TSDTData;
+typedef TSDDescriptorData TSDCATData;
+typedef TSDDescriptorData TSDTSDTData;
 
 /**
- * Table Data.
- * Raw Table Data extracted from a Table which we don't support the parsing of.
+ * TSDTable Data.
+ * Raw TSDTable Data extracted from a TSDTable which we don't support the parsing of.
  */
-typedef struct TableData {
-    Table *table;   /// Table section information
+typedef struct TSDTableData {
+    TSDTable *table;   /// TSDTable section information
     uint8_t *data;  /// Contiguous block of the table section data
     size_t size;    /// The number of bytes in data
-} TableData;
+} TSDTableData;
 
 /**
  * TS Demux Context.
@@ -567,8 +567,8 @@ typedef struct TSDemuxContext {
      * Registerd PIDs.
      * The PIDs registered for demuxing.
      */
-    uint16_t registered_pids[MAX_PID_REGISTRATIONS];
-    DataContext *registered_pids_data[MAX_PID_REGISTRATIONS];
+    uint16_t registered_pids[TSD_MAX_PID_REGS];
+    TSDDataContext *registered_pids_data[TSD_MAX_PID_REGS];
     size_t registered_pids_length;
 
     /**
@@ -581,7 +581,7 @@ typedef struct TSDemuxContext {
      * PAT Data.
      */
     struct {
-        PATData value;
+        TSDPATData value;
         int valid;
     } pat;
 
@@ -589,7 +589,7 @@ typedef struct TSDemuxContext {
      * PMT Data.
      */
     struct {
-        PMTData *values;
+        TSDPMTData *values;
         size_t length;
         size_t capacity;
     } pmt;
@@ -599,8 +599,8 @@ typedef struct TSDemuxContext {
      * Tempoary pool of buffers used during demuxing.
      */
     struct {
-        DataContext *active;
-        DataContext *pool;
+        TSDDataContext *active;
+        TSDDataContext *pool;
         size_t length;
     } buffers;
 
@@ -622,7 +622,7 @@ const char* tsd_get_version(void);
  * @param ctx The TSDemuxContext to set default parameters onto.
  * @return TSD_OK on success.
  */
-TSCode set_default_context(TSDemuxContext *ctx);
+TSDCode tsd_set_default_context(TSDemuxContext *ctx);
 
 /**
  * Set Demux Context's Event Callback.
@@ -635,33 +635,33 @@ TSCode set_default_context(TSDemuxContext *ctx);
  *                 NULL to remove the current callback.
  * @return Returns TSD_OK on success.
  */
-TSCode set_event_callback(TSDemuxContext *ctx, tsd_on_event callback);
+TSDCode tsd_set_event_callback(TSDemuxContext *ctx, tsd_on_event callback);
 
 /**
  * Demux a Transport Stream.
  */
-size_t demux(TSDemuxContext *ctx, void *data, size_t size, TSCode *code);
+size_t tsd_demux(TSDemuxContext *ctx, void *data, size_t size, TSDCode *code);
 
 /**
  * Parse Packet Header.
  * Parses a TS Packet from the supplied data.
  * The parsed output is put into the hdr parameter supplied.
- * The hdr pointer must be a pointer to a valid TSPacket object.
+ * The hdr pointer must be a pointer to a valid TSDPacket object.
  * @param ctx The context being used to demux.
  * @param data The TS data to parse.
  * @param size The number of bytes to parse.
  * @param hdr The ouput of the parsing will do into the object referenced by
  *            this pointer.
- * @return TSD_OK on success. See the TSCode enum for error codes.
+ * @return TSD_OK on success. See the TSDCode enum for error codes.
  */
-TSCode parse_packet_header(TSDemuxContext *ctx,
-                           const uint8_t *data,
-                           size_t size,
-                           TSPacket *hdr);
+TSDCode tsd_parse_packet_header(TSDemuxContext *ctx,
+                                const uint8_t *data,
+                                size_t size,
+                                TSDPacket *hdr);
 
 /**
  * Parse TS Packet Adaption Field.
- * Parses the Adaption Field found inside a TSPacket.
+ * Parses the Adaption Field found inside a TSDPacket.
  * This function is called internally when parsing TS Packets.
  * @param ctx The context being used to demux.
  * @param data The data to parse.
@@ -669,14 +669,14 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
  * @param adap The AdaptatioField object that will store the result.
  * @return TSD_OK on success.
  */
-TSCode parse_adaptation_field(TSDemuxContext *ctx,
-                              const uint8_t *data,
-                              size_t size,
-                              AdaptationField *adap);
+TSDCode tsd_parse_adaptation_field(TSDemuxContext *ctx,
+                                   const uint8_t *data,
+                                   size_t size,
+                                   TSDAdaptationField *adap);
 
 /**
- * Parses Table packets.
- * Parses a series of packets to construct a generic table. A Table
+ * Parses TSDTable packets.
+ * Parses a series of packets to construct a generic table. A TSDTable
  * can be contained within a single Packet or across multiple.
  * The data contained within the table to produce a PAT, PMT or CAT
  * needs to be parsed once the generic table has been parsed.
@@ -686,97 +686,97 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
  * @param table Where to store the table output.
  * @return TSD_OK will be returned on successful parsing of a table
  *                TSD_INCOMPLETE_TABLE will be returned when there is
- *                not enough data to complete the table. parse_table
+ *                not enough data to complete the table. tsd_parse_table
  *                will then need to be called with the next packets
  *                idenitfied with the sample table PID.
  */
 
-TSCode parse_table(TSDemuxContext *ctx,
-                   TSPacket *pkt,
-                   Table *table);
+TSDCode tsd_parse_table(TSDemuxContext *ctx,
+                        TSDPacket *pkt,
+                        TSDTable *table);
 
 /**
- * Parses all the Table Sections to form a Table.
- * Takes complete Table data, which is all the Table Sections that
- * make up a table, and parses them into the supplied Table object.
- * This is called internally by parse_table.
+ * Parses all the TSDTable Sections to form a TSDTable.
+ * Takes complete TSDTable data, which is all the TSDTable Sections that
+ * make up a table, and parses them into the supplied TSDTable object.
+ * This is called internally by tsd_parse_table.
  * @param ctx The context being used to demux.
- * @param data The raw Table data to parse.
+ * @param data The raw TSDTable data to parse.
  * @param size The number of bytes that make up the table.
- * @param table The Table where the TableSections will be stored.
+ * @param table The TSDTable where the TableSections will be stored.
  * @return TSD_OK on success.
  */
-TSCode parse_table_sections(TSDemuxContext *ctx,
-                            uint8_t *data,
-                            size_t size,
-                            Table *table);
+TSDCode tsd_parse_table_sections(TSDemuxContext *ctx,
+                                 uint8_t *data,
+                                 size_t size,
+                                 TSDTable *table);
 
 /**
- * Parses PAT data from a Table.
- * The table data is the data supplied by a Table object once a
- * generic table has been processed using parse_table.
+ * Parses PAT data from a TSDTable.
+ * The table data is the data supplied by a TSDTable object once a
+ * generic table has been processed using tsd_parse_table.
  * @param ctx The context being used to demux.
  * @param data The table data to parse into PAT values.
  * @param size The size of the table data. Should be in multiple of 4
  *             bytes
- * @param pat The PATData that will store the result.
+ * @param pat The TSDPATData that will store the result.
  * @return Returns TSD_OK on success.
  */
-TSCode parse_pat(TSDemuxContext *ctx,
-                 const uint8_t *data,
-                 size_t size,
-                 PATData* pat);
+TSDCode tsd_parse_pat(TSDemuxContext *ctx,
+                      const uint8_t *data,
+                      size_t size,
+                      TSDPATData* pat);
 
 /**
- * Parses Descriptor data from a Table.
- * The table data is the data supplied by a Table object once a
- * generic table has been processed using parse_table.
+ * Parses TSDDescriptor data from a TSDTable.
+ * The table data is the data supplied by a TSDTable object once a
+ * generic table has been processed using tsd_parse_table.
  * @param ctx The context being used to demux.
  * @param data The table data to parse into CAT values.
  * @param size The size of the table data.
- * @param descriptorData The DescriptorData that will store the result.
+ * @param descriptorData The TSDDescriptorData that will store the result.
  * @return Returns TSD_OK on success.
  */
-TSCode parse_descriptors(TSDemuxContext *ctx,
-                         const uint8_t *data,
-                         size_t size,
-                         DescriptorData *descriptorData);
+TSDCode tsd_parse_descriptors(TSDemuxContext *ctx,
+                              const uint8_t *data,
+                              size_t size,
+                              TSDDescriptorData *descriptorData);
 
 /**
- * Parses PMT data from a Table.
- * The table data is the data supploed by a Table object once a
- * generic table has been processed using parse_table.
+ * Parses PMT data from a TSDTable.
+ * The table data is the data supploed by a TSDTable object once a
+ * generic table has been processed using tsd_parse_table.
  * @param ctx The context being used to demux.
  * @param data The table data to parse into a PMT.
  * @param size The size of the table data.
- * @param pmt The PMTData that will store the result.
+ * @param pmt The TSDPMTData that will store the result.
  * @return Returns TSD_OK on success.
  */
-TSCode parse_pmt(TSDemuxContext *ctx,
-                 const uint8_t *data,
-                 size_t size,
-                 PMTData *pmt);
+TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
+                      const uint8_t *data,
+                      size_t size,
+                      TSDPMTData *pmt);
 
 /**
  * Parses PES packets.
  * @param ctx The context being used to demux.
  * @param data The raw data to parse.
  * @param size The size of the data.
- * @param pes The PESPacket that the data will be parsed into.
+ * @param pes The TSDPESPacket that the data will be parsed into.
  * @return Returns TSD_OK on success.
  */
-TSCode parse_pes(TSDemuxContext *ctx,
-                 const uint8_t *data,
-                 size_t size,
-                 PESPacket *pes);
+TSDCode tsd_parse_pes(TSDemuxContext *ctx,
+                      const uint8_t *data,
+                      size_t size,
+                      TSDPESPacket *pes);
 
 /**
- * Parses and Extracts data from a Table.
+ * Parses and Extracts data from a TSDTable.
  * Parses packets that make up a table and Extracts the data into a contiguous
  * memory buffer.
  * @param ctx The context being used to demux.
  * @param hdr The next packet to parse
- * @param table A pointer to a Table Structure that will be populated with the
+ * @param table A pointer to a TSDTable Structure that will be populated with the
  *              table section information.
  * @param mem A pointer used to store the memry buffer location.
  * @param size A pointer to an integer used to store the number of bytes written
@@ -785,50 +785,50 @@ TSCode parse_pes(TSDemuxContext *ctx,
  *         the table is incomplete and requires more packets to be parsed.
  *         Any other response must be treated as an error.
  */
-TSCode extract_table_data(TSDemuxContext *ctx,
-                          TSPacket *hdr,
-                          Table *table,
-                          uint8_t **mem,
-                          size_t *size);
+TSDCode tsd_extract_table_data(TSDemuxContext *ctx,
+                               TSDPacket *hdr,
+                               TSDTable *table,
+                               uint8_t **mem,
+                               size_t *size);
 
 /**
  * Data Content Initializtion.
  * Initializes a Data Context. Do not call multiple times on the same Context
  * unless the context has been destroyed.
- * A DataContext must be initialized before being used anywhere in the API.
+ * A TSDDataContext must be initialized before being used anywhere in the API.
  * @param ctx The context being used to demux.
- * @param dataCtx The DataContext to initialize.
+ * @param dataCtx The TSDDataContext to initialize.
  * @return TSD_OK on succes.
  */
-TSCode data_context_init(TSDemuxContext *ctx, DataContext *dataCtx);
+TSDCode tsd_data_context_init(TSDemuxContext *ctx, TSDDataContext *dataCtx);
 
 /**
- * Destroys a DataContext.
- * Destroys a DataContext that has been previously initialized.
- * Calling data_context_destroy multiple times after initializing a DataContext
+ * Destroys a TSDDataContext.
+ * Destroys a TSDDataContext that has been previously initialized.
+ * Calling tsd_data_context_destroy multiple times after initializing a TSDDataContext
  * will not cause any problems.
- * Do not call data_context_destroy on an unitialized DataContext, unexecpted
+ * Do not call tsd_data_context_destroy on an unitialized TSDDataContext, unexecpted
  * behavior will occur.
- * It is possible to reinitialize a DataContext once it has been destroyed.
+ * It is possible to reinitialize a TSDDataContext once it has been destroyed.
  * @param ctx The context being used to demux.
- * @param dataCtx The DataContext to destroy.
- * @return TSD_OK on success and if the DataContext has already been destroyed.
+ * @param dataCtx The TSDDataContext to destroy.
+ * @return TSD_OK on success and if the TSDDataContext has already been destroyed.
  */
-TSCode data_context_destroy(TSDemuxContext *ctx, DataContext *dataCtx);
+TSDCode tsd_data_context_destroy(TSDemuxContext *ctx, TSDDataContext *dataCtx);
 
 /**
- * Writes data to DataContext.
- * The DataContext will dynamically allocate more memory if there is not enough
- * space in the DataContext buffer.
- * Supplying NULL data or a size of zero will cause data_context_write to return
+ * Writes data to TSDDataContext.
+ * The TSDDataContext will dynamically allocate more memory if there is not enough
+ * space in the TSDDataContext buffer.
+ * Supplying NULL data or a size of zero will cause tsd_data_context_write to return
  * an error.
  * @param ctx The context being used to demux.
- * @param dataCtx The DataContext to write the data to.
+ * @param dataCtx The TSDDataContext to write the data to.
  * @param data The data to write.
  * @param size The number of bytes to write.
  * @returns TSD_OK on success.
  */
-TSCode data_context_write(TSDemuxContext *ctx, DataContext *dataCtx, const uint8_t *data, size_t size);
+TSDCode tsd_data_context_write(TSDemuxContext *ctx, TSDDataContext *dataCtx, const uint8_t *data, size_t size);
 
 /**
  * Reset Data Context.
@@ -836,10 +836,10 @@ TSCode data_context_write(TSDemuxContext *ctx, DataContext *dataCtx, const uint8
  * Re-uses the existing buffer even if it has previously been dynamically
  * allocated during a write process.
  * @param ctx The context being used to demux.
- * @param dataCtx The DataContext to reset.
+ * @param dataCtx The TSDDataContext to reset.
  * @return TSD_OK on success.
  */
-TSCode data_context_reset(TSDemuxContext *ctx, DataContext *dataCtx);
+TSDCode tsd_data_context_reset(TSDemuxContext *ctx, TSDDataContext *dataCtx);
 
 /**
  * Register a PID for demuxing.
@@ -849,7 +849,7 @@ TSCode data_context_reset(TSDemuxContext *ctx, DataContext *dataCtx);
  * @param pid The PID being registered.
  * @return TSD_OK on success.
  */
-TSCode register_pid(TSDemuxContext *ctx, uint16_t pid);
+TSDCode tsd_register_pid(TSDemuxContext *ctx, uint16_t pid);
 
 /**
  * Deregisters a PID for demuxing.
@@ -858,6 +858,6 @@ TSCode register_pid(TSDemuxContext *ctx, uint16_t pid);
  * @param pid The PID being deregistered.
  * @return TSD_OK on success.
  */
-TSCode deregister_pid(TSDemuxContext *ctx, uint16_t pid);
+TSDCode tsd_deregister_pid(TSDemuxContext *ctx, uint16_t pid);
 
 #endif // TS_DEMUX_H

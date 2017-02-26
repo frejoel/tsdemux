@@ -19,22 +19,22 @@ void parse_pmt_input(void)
     test_start("parse pmt input");
 
     TSDemuxContext ctx;
-    TSCode res;
-    PMTData pmt;
+    TSDCode res;
+    TSDPMTData pmt;
     memset(&pmt, 0, sizeof(pmt));
 
     uint8_t data[] = {
         0x01, 0x02, 0x03, 0x04
     };
 
-    res = parse_pmt(NULL, NULL, 0, NULL);
+    res = tsd_parse_pmt(NULL, NULL, 0, NULL);
     test_assert_equal(TSD_INVALID_CONTEXT, res, "invalid context");
-    res = parse_pmt(&ctx, NULL, 0, NULL);
+    res = tsd_parse_pmt(&ctx, NULL, 0, NULL);
     test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
-    res = parse_pmt(&ctx, data, 0, NULL);
+    res = tsd_parse_pmt(&ctx, data, 0, NULL);
     test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid size");
-    res = parse_pmt(&ctx, data, sizeof(data), NULL);
-    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid PMTData");
+    res = tsd_parse_pmt(&ctx, data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid TSDPMTData");
 
     test_end();
 }
@@ -44,10 +44,10 @@ void parse_pmt_data(void)
     test_start("parse pmt data");
 
     TSDemuxContext ctx;
-    PMTData pmt;
-    TSCode res;
+    TSDPMTData pmt;
+    TSDCode res;
 
-    set_default_context(&ctx);
+    tsd_set_default_context(&ctx);
     memset(&pmt, 0, sizeof(pmt));
 
     uint8_t data[] = {
@@ -67,7 +67,7 @@ void parse_pmt_data(void)
         0xCC, 0xCC, 0xEE, 0x54, // CRC32
     };
 
-    res = parse_pmt(&ctx, data, sizeof(data), &pmt);
+    res = tsd_parse_pmt(&ctx, data, sizeof(data), &pmt);
     test_assert_equal(TSD_OK, res, "parse valid data");
     test_assert_equal(0x99, pmt.pcr_pid, "PCR PID");
     test_assert_equal(0x09, pmt.program_info_length, "program info length");
@@ -109,10 +109,10 @@ void parse_pmt_empty_data(void)
     test_start("parse pmt empty data");
 
     TSDemuxContext ctx;
-    PMTData pmt;
-    TSCode res;
+    TSDPMTData pmt;
+    TSDCode res;
 
-    set_default_context(&ctx);
+    tsd_set_default_context(&ctx);
     memset(&pmt, 0, sizeof(pmt));
 
     uint8_t data[] = {
@@ -127,7 +127,7 @@ void parse_pmt_empty_data(void)
         0xCC, 0xCC, 0xEE, 0x54, // CRC32
     };
 
-    res = parse_pmt(&ctx, data, sizeof(data), &pmt);
+    res = tsd_parse_pmt(&ctx, data, sizeof(data), &pmt);
     test_assert_equal(TSD_OK, res, "parse valid data");
     test_assert_equal(0x99, pmt.pcr_pid, "PCR PID");
     test_assert_equal(0x00, pmt.program_info_length, "program info length");

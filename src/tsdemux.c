@@ -10,8 +10,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -68,7 +68,7 @@ const char* tsd_get_version(void)
     return TSD_VERSION;
 }
 
-TSCode set_default_context(TSDemuxContext *ctx)
+TSDCode tsd_set_default_context(TSDemuxContext *ctx)
 {
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
 
@@ -85,7 +85,7 @@ TSCode set_default_context(TSDemuxContext *ctx)
     return TSD_OK;
 }
 
-TSCode set_event_callback(TSDemuxContext *ctx, tsd_on_event callback)
+TSDCode tsd_set_event_callback(TSDemuxContext *ctx, tsd_on_event callback)
 {
     if(ctx == NULL)     return TSD_INVALID_CONTEXT;
     // Note that we allow the callback to be NULL
@@ -106,10 +106,10 @@ void dump_packet_data(const uint8_t *data)
     printf("\n");
 }
 
-TSCode parse_packet_header(TSDemuxContext *ctx,
-                           const uint8_t *data,
-                           size_t size,
-                           TSPacket *hdr)
+TSDCode tsd_parse_packet_header(TSDemuxContext *ctx,
+                                const uint8_t *data,
+                                size_t size,
+                                TSDPacket *hdr)
 {
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
     if(data == NULL)                return TSD_INVALID_DATA;
@@ -136,11 +136,11 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
     hdr->data_bytes_length = 0;
 
     // parse the adaptation field if it exists
-    if(hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_AND_PAYLOAD ||
-       hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_ONLY) {
+    if(hdr->adaptation_field_control == TSD_AFC_ADAP_FIELD_AND_PAYLOAD ||
+       hdr->adaptation_field_control == TSD_AFC_ADAP_FIELD_ONLY) {
 
-        TSCode res = parse_adaptation_field(ctx, ptr, size-4,
-                                            &hdr->adaptation_field);
+        TSDCode res = tsd_parse_adaptation_field(ctx, ptr, size-4,
+                      &hdr->adaptation_field);
 
         if(res != TSD_OK) return res;
 
@@ -149,16 +149,16 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
         };
         ptr = &ptr[hdr->adaptation_field.adaptation_field_length + 1];
     } else {
-        memset(&hdr->adaptation_field, 0, sizeof(AdaptationField));
+        memset(&hdr->adaptation_field, 0, sizeof(TSDAdaptationField));
     }
 
     // is there a payload in this packet?
-    if(hdr->adaptation_field_control == AFC_NO_FIELD_PRESENT ||
-       hdr->adaptation_field_control == AFC_ADAPTATION_FIELD_AND_PAYLOAD) {
+    if(hdr->adaptation_field_control == TSD_AFC_NO_FIELD_PRESENT ||
+       hdr->adaptation_field_control == TSD_AFC_ADAP_FIELD_AND_PAYLOAD) {
 
         // handle error packets
-        if(!(hdr->flags & TSPF_TRANSPORT_ERROR_INDICATOR) &&
-           (hdr->pid != PID_NULL_PACKETS)) {
+        if(!(hdr->flags & TSD_PF_TRAN_ERR_INDICATOR) &&
+           (hdr->pid != TSD_PID_NULL_PACKETS)) {
 
             size_t len = TSD_TSPACKET_SIZE - ((size_t)ptr - (size_t)data);
             if(len <= TSD_TSPACKET_SIZE - 4) {
@@ -173,10 +173,10 @@ TSCode parse_packet_header(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
-TSCode parse_adaptation_field(TSDemuxContext *ctx,
-                              const uint8_t *data,
-                              size_t size,
-                              AdaptationField *adap)
+TSDCode tsd_parse_adaptation_field(TSDemuxContext *ctx,
+                                   const uint8_t *data,
+                                   size_t size,
+                                   TSDAdaptationField *adap)
 {
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
     if(data == NULL)                return TSD_INVALID_DATA;
@@ -198,31 +198,31 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
         adap->flags = *ptr;
         ptr++;
 
-        if(adap->flags & AF_PCR_FLAG) {
+        if(adap->flags & TSD_AF_PCR_FLAG) {
             if(ptr+6 > end) return TSD_INVALID_DATA_SIZE;
             uint64_t val = parse_uint64(*((uint64_t*)ptr));
-            adap->program_clock_reference_base = (val >> 31) & 0x1FFFFFFFFL;
+            adap->program_clock_ref_base = (val >> 31) & 0x1FFFFFFFFL;
             // ignore the 6 reserved bytes
-            adap->program_clock_reference_extension = (uint16_t)((val >> 16) & 0x1FFL);
+            adap->program_clock_ref_ext = (uint16_t)((val >> 16) & 0x1FFL);
             ptr+=6;
         }
 
-        if(adap->flags & AF_OPCR_FLAG) {
+        if(adap->flags & TSD_AF_OPCR_FLAG) {
             if(ptr+6 > end) return TSD_INVALID_DATA_SIZE;
             uint64_t val = parse_uint64(*((uint64_t*)ptr));
-            adap->original_program_clock_reference_base = (val >> 31) & 0x1FFFFFFFFL;
+            adap->orig_program_clock_ref_base = (val >> 31) & 0x1FFFFFFFFL;
             // ignore the 6 reserved bytes
-            adap->original_program_clock_reference_extension = (uint16_t)((val >> 16) & 0x1FFL);
+            adap->orig_program_clock_ref_ext = (uint16_t)((val >> 16) & 0x1FFL);
             ptr+=6;
         }
 
-        if(adap->flags & AF_SPLICING_POINT_FLAG) {
+        if(adap->flags & TSD_AF_SPLICING_POINT_FLAG) {
             if(ptr+1 > end) return TSD_INVALID_DATA_SIZE;
             adap->splice_countdown = *ptr;
             ptr++;
         }
 
-        if(adap->flags & AF_TRANSPORT_PRIVATE_DATA_FLAG) {
+        if(adap->flags & TSD_AF_TRAN_PRIVATE_DATA_FLAG) {
             if(ptr+1 > end) return TSD_INVALID_DATA_SIZE;
             adap->transport_private_data_length = *ptr;
             ptr++;
@@ -234,37 +234,37 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
             ptr += adap->transport_private_data_length;
         }
 
-        if(adap->flags & AF_ADAPTATION_FIELD_EXTENSION_FLAG) {
+        if(adap->flags & TSD_AF_ADAP_FIELD_EXT_FLAG) {
             if(ptr+1 > end) return TSD_INVALID_DATA_SIZE;
-            adap->adaptation_field_extension.length = *ptr;
+            adap->adap_field_ext.length = *ptr;
             ptr++;
             if(ptr+1 > end) return TSD_INVALID_DATA_SIZE;
-            adap->adaptation_field_extension.flags = ((*ptr) >> 5) & 0x07;
+            adap->adap_field_ext.flags = ((*ptr) >> 5) & 0x07;
             ptr++;
 
-            if(adap->adaptation_field_extension.flags & AFEF_LTW_FLAG) {
+            if(adap->adap_field_ext.flags & TSD_AFEF_LTW_FLAG) {
                 if(ptr+2 > end) return TSD_INVALID_DATA_SIZE;
-                adap->adaptation_field_extension.ltw_valid_flag =
+                adap->adap_field_ext.ltw_valid_flag =
                     (*ptr) >> 7 & 0x01;
                 uint16_t offset = parse_uint16(*((uint16_t*)ptr));
-                adap->adaptation_field_extension.ltw_offset = offset & 0x7FFF;
+                adap->adap_field_ext.ltw_offset = offset & 0x7FFF;
                 ptr += 2;
             }
 
-            if(adap->adaptation_field_extension.flags & AFEF_PIECEWISE_RATE_FLAG) {
+            if(adap->adap_field_ext.flags & TSD_AFEF_PIECEWISE_RATE_FLAG) {
                 if(ptr+3 > end) return TSD_INVALID_DATA_SIZE;
                 uint32_t rate = parse_uint32(*((uint32_t*)ptr)) >> 8;
-                adap->adaptation_field_extension.piecewise_rate = rate & 0x3FFFFF;
+                adap->adap_field_ext.piecewise_rate = rate & 0x3FFFFF;
                 ptr += 3;
             }
 
-            if(adap->adaptation_field_extension.flags & AFEF_SEAMLESS_SPLCE_FLAG) {
+            if(adap->adap_field_ext.flags & TSD_AFEF_SEAMLESS_SPLCE_FLAG) {
                 if(ptr+5 > end) return TSD_INVALID_DATA_SIZE;
-                adap->adaptation_field_extension.splice_type = ((*ptr) >> 4) & 0x0F;
+                adap->adap_field_ext.splice_type = ((*ptr) >> 4) & 0x0F;
                 uint64_t au1 = (uint64_t) (((*ptr) >> 1) & 0x07);
                 uint64_t au2 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+1))) >> 1) & 0x7FFF);
                 uint64_t au3 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+3))) >> 1) & 0x7FFF);
-                adap->adaptation_field_extension.dts_next_au = (au1 << 30) | (au2 << 15) | au3;
+                adap->adap_field_ext.dts_next_au = (au1 << 30) | (au2 << 15) | au3;
             }
         }
     }
@@ -272,11 +272,11 @@ TSCode parse_adaptation_field(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
-TSCode get_data_context(TSDemuxContext *ctx,
-                        uint8_t table_id,
-                        uint16_t table_ext,
-                        uint8_t version,
-                        DataContext **context)
+TSDCode get_data_context(TSDemuxContext *ctx,
+                         uint8_t table_id,
+                         uint16_t table_ext,
+                         uint8_t version,
+                         TSDDataContext **context)
 {
     if(ctx == NULL)         return TSD_INVALID_CONTEXT;
     if(context == NULL)     return TSD_INVALID_ARGUMENT;
@@ -290,7 +290,7 @@ TSCode get_data_context(TSDemuxContext *ctx,
     size_t i=0;
     for(; i<ctx->buffers.length; ++i) {
         if(ctx->buffers.pool[i].id == id) {
-            // found a matching DataContext
+            // found a matching TSDDataContext
             *context = &ctx->buffers.pool[i];
             return TSD_OK;
         }
@@ -307,14 +307,14 @@ TSCode get_data_context(TSDemuxContext *ctx,
         }
     }
 
-    // we didn't find a DataContext, create a new one and add it to the Pool
-    DataContext *dataCtx = NULL;
+    // we didn't find a TSDDataContext, create a new one and add it to the Pool
+    TSDDataContext *dataCtx = NULL;
     size_t len = ctx->buffers.length + 1;
     if(len == 1) {
-        dataCtx = (DataContext*) ctx->malloc(sizeof(DataContext));
+        dataCtx = (TSDDataContext*) ctx->malloc(sizeof(TSDDataContext));
     } else {
-        size_t size = sizeof(DataContext) * len;
-        dataCtx = (DataContext*) ctx->realloc(ctx->buffers.pool, size);
+        size_t size = sizeof(TSDDataContext) * len;
+        dataCtx = (TSDDataContext*) ctx->realloc(ctx->buffers.pool, size);
     }
 
     if(!dataCtx) {
@@ -327,21 +327,21 @@ TSCode get_data_context(TSDemuxContext *ctx,
         ctx->buffers.active = &ctx->buffers.pool[active_idx];
     }
 
-    // initialize the DataContext
-    TSCode res = data_context_init(ctx, &(dataCtx[len-1]));
+    // initialize the TSDDataContext
+    TSDCode res = tsd_data_context_init(ctx, &(dataCtx[len-1]));
     *context = dataCtx;
     return res;
 }
 
-TSCode parse_table(TSDemuxContext *ctx,
-                   TSPacket *pkt,
-                   Table *table)
+TSDCode tsd_parse_table(TSDemuxContext *ctx,
+                        TSDPacket *pkt,
+                        TSDTable *table)
 {
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
     if(pkt == NULL)                 return TSD_INVALID_ARGUMENT;
     if(table == NULL)               return TSD_INVALID_ARGUMENT;
 
-    TSCode res;
+    TSDCode res;
 
     // payload data error handling.
     if(pkt->data_bytes == NULL || pkt->data_bytes_length == 0) {
@@ -352,7 +352,7 @@ TSCode parse_table(TSDemuxContext *ctx,
     const uint8_t *ptr = pkt->data_bytes;
     size_t ptr_len = pkt->data_bytes_length;
 
-    if(pkt->flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
+    if(pkt->flags & TSD_PF_PAYLOAD_UNIT_START_IND) {
         // there is a new table section somewhere in this packet.
         // parse the pointer_field.
         size_t pointer_field = *ptr;
@@ -361,7 +361,7 @@ TSCode parse_table(TSDemuxContext *ctx,
         }
         ptr = &ptr[pointer_field+1];
         ptr_len -= (pointer_field + 1);
-        // parse some of the table info so that we can find the DataContext
+        // parse some of the table info so that we can find the TSDDataContext
         // assoicated with this table.
         uint8_t table_id = *ptr;
         uint16_t table_ext = 0;
@@ -371,7 +371,7 @@ TSCode parse_table(TSDemuxContext *ctx,
             version = (ptr[5] & 0x3E) >> 1;
         }
 
-        // set the DataContext for this table as active.
+        // set the TSDDataContext for this table as active.
         res = get_data_context(ctx,
                                table_id,
                                table_ext,
@@ -389,9 +389,9 @@ TSCode parse_table(TSDemuxContext *ctx,
         }
     }
 
-    DataContext *dataCtx = ctx->buffers.active;
+    TSDDataContext *dataCtx = ctx->buffers.active;
     // write the data into our buffer
-    res = data_context_write(ctx, dataCtx, ptr, ptr_len);
+    res = tsd_data_context_write(ctx, dataCtx, ptr, ptr_len);
     if(res != TSD_OK) {
         return res;
     }
@@ -414,16 +414,16 @@ TSCode parse_table(TSDemuxContext *ctx,
 
             // create and parse the sections.
             table->length = section_count;
-            table->sections = (TableSection*) ctx->calloc(section_count,
-                              sizeof(TableSection));
+            table->sections = (TSDTableSection*) ctx->calloc(section_count,
+                              sizeof(TSDTableSection));
 
             if(!table->sections) return TSD_OUT_OF_MEMORY;
 
             // parse the table sections
-            res = parse_table_sections(ctx,
-                                       dataCtx->buffer,
-                                       dataCtx->write - dataCtx->buffer,
-                                       table);
+            res = tsd_parse_table_sections(ctx,
+                                           dataCtx->buffer,
+                                           dataCtx->write - dataCtx->buffer,
+                                           table);
             return res;
         }
     }
@@ -431,10 +431,10 @@ TSCode parse_table(TSDemuxContext *ctx,
     return TSD_INCOMPLETE_TABLE;
 }
 
-TSCode parse_table_sections(TSDemuxContext *ctx,
-                            uint8_t *data,
-                            size_t size,
-                            Table *table)
+TSDCode tsd_parse_table_sections(TSDemuxContext *ctx,
+                                 uint8_t *data,
+                                 size_t size,
+                                 TSDTable *table)
 {
     if(ctx == NULL)             return TSD_INVALID_CONTEXT;
     if(data == NULL)            return TSD_INVALID_DATA;
@@ -450,7 +450,7 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
         if((size_t)(end - ptr) < 3) {
             return TSD_INVALID_DATA_SIZE;
         }
-        TableSection *section = &(table->sections[i]);
+        TSDTableSection *section = &(table->sections[i]);
         section->table_id = *ptr;
         ptr++;
         // section syntax indicator and private indicator
@@ -461,7 +461,7 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
             return TSD_INVALID_DATA_SIZE;
         }
         // are we dealing with a long form or short form table?
-        if(section->flags & TBL_SECTION_SYNTAX_INDICATOR) {
+        if(section->flags & TSD_TBL_SECTION_SYNTAX_INDICATOR) {
             // long form table properties
             // Note that the table_id_extension could be PAT, CAT or PMT data.
             // make sure we have enough data, and that the section length is
@@ -471,7 +471,8 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
             }
             section->table_id_extension = parse_uint16(*((uint16_t*)(ptr)));
             section->version_number = ((*(ptr+2)) >> 1) & 0x1F;
-            section->flags |= ((*(ptr+2)) & 0x01) << 2; // current next indicator
+            // current next indicator
+            section->flags |= ((*(ptr+2)) & 0x01) << 2;
             section->section_number = *(ptr+3);
             section->last_section_number = *(ptr+4);
             section->section_data = ptr+5;
@@ -496,10 +497,10 @@ TSCode parse_table_sections(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
-TSCode parse_pat(TSDemuxContext *ctx,
-                 const uint8_t *data,
-                 size_t size,
-                 PATData *pat)
+TSDCode tsd_parse_pat(TSDemuxContext *ctx,
+                      const uint8_t *data,
+                      size_t size,
+                      TSDPATData *pat)
 {
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
     if(data == NULL)                return TSD_INVALID_DATA;
@@ -561,10 +562,10 @@ size_t descriptor_count(const uint8_t *ptr, size_t length)
 
 size_t parse_descriptor(const uint8_t* data,
                         size_t size,
-                        Descriptor *descriptors,
+                        TSDDescriptor *descriptors,
                         size_t length)
 {
-    Descriptor *desc;
+    TSDDescriptor *desc;
     const uint8_t *ptr = data;
     const uint8_t *end = &data[size];
 
@@ -587,10 +588,10 @@ size_t parse_descriptor(const uint8_t* data,
     return (size_t)(ptr - data);
 }
 
-TSCode parse_pmt(TSDemuxContext *ctx,
-                 const uint8_t *data,
-                 size_t size,
-                 PMTData *pmt)
+TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
+                      const uint8_t *data,
+                      size_t size,
+                      TSDPMTData *pmt)
 {
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
     if(data == NULL)                return TSD_INVALID_DATA;
@@ -616,8 +617,8 @@ TSCode parse_pmt(TSDemuxContext *ctx,
     if(desc_size > 0) {
         count = descriptor_count(ptr, desc_size);
         // create and parse the descriptors
-        pmt->descriptors = (Descriptor*) ctx->calloc(count,
-                           sizeof(Descriptor));
+        pmt->descriptors = (TSDDescriptor*) ctx->calloc(count,
+                           sizeof(TSDDescriptor));
         if(!pmt->descriptors) return TSD_OUT_OF_MEMORY;
         pmt->descriptors_length = count;
 
@@ -645,8 +646,8 @@ TSCode parse_pmt(TSDemuxContext *ctx,
         return TSD_OK;
     }
 
-    pmt->program_elements = (ProgramElement*) ctx->calloc(count,
-                            sizeof(ProgramElement));
+    pmt->program_elements = (TSDProgramElement*) ctx->calloc(count,
+                            sizeof(TSDProgramElement));
 
     if(!pmt->program_elements) {
         ctx->free(pmt->descriptors);
@@ -659,7 +660,7 @@ TSCode parse_pmt(TSDemuxContext *ctx,
     pmt->program_elements_length = count;
     size_t i;
     for(i=0; i<count; ++i) {
-        ProgramElement *prog = &pmt->program_elements[i];
+        TSDProgramElement *prog = &pmt->program_elements[i];
         prog->stream_type = *ptr;
         ptr++;
         prog->elementary_pid = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
@@ -688,8 +689,8 @@ TSCode parse_pmt(TSDemuxContext *ctx,
             continue;
         }
 
-        prog->descriptors = (Descriptor*) ctx->calloc(inner_count,
-                            sizeof(Descriptor));
+        prog->descriptors = (TSDDescriptor*) ctx->calloc(inner_count,
+                            sizeof(TSDDescriptor));
         prog->descriptors_length = inner_count;
         parse_descriptor(ptr, desc_size, prog->descriptors, inner_count);
         ptr = &ptr[desc_size];
@@ -699,17 +700,17 @@ TSCode parse_pmt(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
-TSCode parse_pes(TSDemuxContext *ctx,
-                 const uint8_t *data,
-                 size_t size,
-                 PESPacket *pes)
+TSDCode tsd_parse_pes(TSDemuxContext *ctx,
+                      const uint8_t *data,
+                      size_t size,
+                      TSDPESPacket *pes)
 {
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
     if(data == NULL)                return TSD_INVALID_DATA;
     if(size < 6)                    return TSD_INVALID_DATA_SIZE;
     if(pes == NULL)                 return TSD_INVALID_ARGUMENT;
 
-    memset(pes, 0, sizeof(PESPacket));
+    memset(pes, 0, sizeof(TSDPESPacket));
 
     const uint8_t *ptr = data;
     const uint8_t *end = &ptr[size];
@@ -723,15 +724,15 @@ TSCode parse_pes(TSDemuxContext *ctx,
     pes->packet_length = parse_uint16(*((uint16_t*)ptr));
     ptr = &ptr[2];
 
-    if(pes->stream_id == PSID_PADDING_STREAM) {
+    if(pes->stream_id == TSD_PSID_PADDING_STREAM) {
         // Padding, we don't need to do anything
-    } else if(pes->stream_id == PSID_PROGRAM_STREAM_MAP ||
-              pes->stream_id == PSID_PRIV_STREAM_2 ||
-              pes->stream_id == PSID_ECM ||
-              pes->stream_id == PSID_EMM ||
-              pes->stream_id == PSID_STREAM_DIRECTORY ||
-              pes->stream_id == PSID_DSMCC ||
-              pes->stream_id == PSID_H2221_TYPE_E) {
+    } else if(pes->stream_id == TSD_PSID_PROGRAM_STREAM_MAP ||
+              pes->stream_id == TSD_PSID_PRIV_STREAM_2 ||
+              pes->stream_id == TSD_PSID_ECM ||
+              pes->stream_id == TSD_PSID_EMM ||
+              pes->stream_id == TSD_PSID_STREAM_DIRECTORY ||
+              pes->stream_id == TSD_PSID_DSMCC ||
+              pes->stream_id == TSD_PSID_H2221_TYPE_E) {
         pes->data_bytes = ptr;
     } else {
         uint8_t value = *ptr;
@@ -741,21 +742,21 @@ TSCode parse_pes(TSDemuxContext *ctx,
         ptr++;
         pes->header_data_length = *ptr;
         ptr++;
-        if(pes->flags & PPF_PTS_FLAG) {
+        if(pes->flags & TSD_PPF_PTS_FLAG) {
             uint64_t pts1 = (uint64_t) (((*ptr) >> 1) & 0x07);
             uint64_t pts2 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+1))) >> 1) & 0x7FFF);
             uint64_t pts3 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+3))) >> 1) & 0x7FFF);
             pes->pts = (pts1 << 30) | (pts2 << 15) | pts3;
             ptr = &ptr[5];
         }
-        if(pes->flags & PPF_DTS_FLAG) {
+        if(pes->flags & TSD_PPF_DTS_FLAG) {
             uint64_t dts1 = (uint64_t) (((*ptr) >> 1) & 0x07);
             uint64_t dts2 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+1))) >> 1) & 0x7FFF);
             uint64_t dts3 = (uint64_t) ((parse_uint16(*((uint16_t*)(ptr+3))) >> 1) & 0x7FFF);
             pes->dts = (dts1 << 30) | (dts2 << 15) | dts3;
             ptr = &ptr[5];
         }
-        if(pes->flags & PPF_ESCR_FLAG) {
+        if(pes->flags & TSD_PPF_ESCR_FLAG) {
             uint64_t value = parse_uint64(*((uint64_t*)ptr));
             pes->escr = ((value >> 27) & 0x7FFFLL) |
                         (((value >> 43) & 0x7FFFLL) << 15) |
@@ -763,56 +764,56 @@ TSCode parse_pes(TSDemuxContext *ctx,
             pes->escr_extension = (uint16_t)((value >> 17) & 0x01FFLL);
             ptr = &ptr[6];
         }
-        if(pes->flags & PPF_ES_RATE_FLAG) {
+        if(pes->flags & TSD_PPF_ES_RATE_FLAG) {
             uint32_t value = parse_uint32(*((uint32_t*)ptr));
             pes->es_rate = (value >> 9) & 0x003FFFFF;
             ptr = &ptr[3];
         }
-        if(pes->flags & PPF_DSM_TRICK_MODE_FLAG) {
+        if(pes->flags & TSD_PPF_DSM_TRICK_MODE_FLAG) {
             pes->trick_mode.control = ((*ptr) >> 5) & 0x07;
-            if(pes->trick_mode.control == TMC_FAST_FORWARD ||
-               pes->trick_mode.control == TMC_FAST_REVERSE) {
+            if(pes->trick_mode.control == TSD_TMC_FAST_FORWARD ||
+               pes->trick_mode.control == TSD_TMC_FAST_REVERSE) {
                 pes->trick_mode.field_id = ((*ptr) >> 3) & 0x03;
                 pes->trick_mode.intra_slice_refresh = ((*ptr) >> 2) & 0x01;
                 pes->trick_mode.frequency_truncation = (*ptr) & 0x03;
-            } else if(pes->trick_mode.control == TMC_SLOW_MOTION ||
-                      pes->trick_mode.control == TMC_SLOW_REVERSE) {
+            } else if(pes->trick_mode.control == TSD_TMC_SLOW_MOTION ||
+                      pes->trick_mode.control == TSD_TMC_SLOW_REVERSE) {
                 pes->trick_mode.rep_cntrl = (*ptr) & 0x1F;
-            } else if(pes->trick_mode.control == TMC_FREEZE_FRAME) {
+            } else if(pes->trick_mode.control == TSD_TMC_FREEZE_FRAME) {
                 pes->trick_mode.field_id = ((*ptr) >> 3) & 0x03;
             }
             ptr++;
         }
-        if(pes->flags & PPF_ADDITIONAL_COPY_INFO_FLAG) {
+        if(pes->flags & TSD_PPF_ADDITIONAL_COPY_INFO_FLAG) {
             pes->additional_copy_info = (*ptr) & 0x7F;
             ptr++;
         }
-        if(pes->flags & PPF_PES_CRC_FLAG) {
+        if(pes->flags & TSD_PPF_PES_CRC_FLAG) {
             pes->previous_pes_packet_crc = parse_uint16(*((uint16_t*)ptr));
             ptr = &ptr[2];
         }
-        if(pes->flags & PPF_PES_EXTENSION_FLAG) {
+        if(pes->flags & TSD_PPF_PES_EXTENSION_FLAG) {
             pes->extension.flags = *ptr;
             ptr++;
-            if(pes->extension.flags & PEF_PES_PRIVATE_DATA_FLAG) {
+            if(pes->extension.flags & TSD_PEF_PES_PRIVATE_DATA_FLAG) {
                 int i=0;
                 for(i=0; i<16; ++i) {
                     pes->extension.pes_private_data[i] = ptr[i];
                 }
                 ptr = &ptr[16]; // 128 bits
             }
-            if(pes->extension.flags & PEF_PACK_HEADER_FIELD_FLAG) {
-                PackHeader *pheader = &pes->extension.pack_header;
+            if(pes->extension.flags & TSD_PEF_PACK_HEADER_FIELD_FLAG) {
+                TSDPackHeader *pheader = &pes->extension.pack_header;
                 pheader->length = *ptr;
                 ptr++;
                 pheader->pack_start_code = parse_uint32(*((uint32_t*)ptr));
                 ptr = &ptr[4];
                 uint64_t value = parse_uint64(*((uint64_t*)ptr));
-                pheader->system_clock_reference_base =
+                pheader->system_clock_ref_base =
                     ((value >> 27) & 0x7FFFLL) |
                     (((value >> 43) & 0x7FFFLL) << 15) |
                     (((value >> 59) & 0x0007LL) << 30);
-                pheader->system_clock_reference_extension =
+                pheader->system_clock_ref_ext =
                     (uint16_t)((value >> 17) & 0x01FFLL);
                 ptr = &ptr[6];
                 pheader->program_mux_rate = parse_uint32(*((uint32_t*)ptr)) >> 10;
@@ -821,7 +822,7 @@ TSCode parse_pes(TSDemuxContext *ctx,
                 // get past stuffing
                 ptr = &ptr[1 + pheader->stuffing_length];
                 // System Header
-                SystemHeader *sysh = &pheader->system_header;
+                TSDSystemHeader *sysh = &pheader->system_header;
                 sysh->start_code = parse_uint32(*((uint32_t*)ptr));
                 ptr = &ptr[4];
                 sysh->length = parse_uint16(*((uint16_t*)ptr));
@@ -835,7 +836,7 @@ TSCode parse_pes(TSDemuxContext *ctx,
                 ptr = &ptr[2];
                 sysh->stream_count = (sysh->length - 6) / 3;
                 if(sysh->stream_count > 0) {
-                    sysh->streams = (SystemHeaderStream*) ctx->calloc(sysh->stream_count, sizeof(SystemHeaderStream));
+                    sysh->streams = (TSDSystemHeaderStream*) ctx->calloc(sysh->stream_count, sizeof(TSDSystemHeaderStream));
                     if(!sysh->streams) return TSD_OUT_OF_MEMORY;
                     size_t i;
                     size_t used = 0;
@@ -843,7 +844,7 @@ TSCode parse_pes(TSDemuxContext *ctx,
                         // make sure the first bit is set in the stream id
                         if((*ptr) & 0x80) {
                             used++;
-                            SystemHeaderStream *stream = &sysh->streams[i];
+                            TSDSystemHeaderStream *stream = &sysh->streams[i];
                             stream->stream_id = *ptr;
                             ptr++;
                             stream->pstd_buffer_bound_scale = ((*ptr) >> 5) & 0x01;
@@ -854,19 +855,19 @@ TSCode parse_pes(TSDemuxContext *ctx,
                     sysh->stream_count = used;
                 }
             }
-            if(pes->extension.flags & PEF_PROGRAM_PACKET_SEQUENCE_COUNTER_FLAG) {
+            if(pes->extension.flags & TSD_PEF_PROGRAM_PACKET_SEQUENCE_COUNTER_FLAG) {
                 pes->extension.program_packet_sequence_counter = (*ptr) & 0x7F;
                 ptr++;
                 pes->extension.mpeg1_mpeg2_identifier = ((*ptr) >> 6) & 0x01;
                 pes->extension.original_stuff_length = (*ptr) & 0x3F;
                 ptr++;
             }
-            if(pes->extension.flags & PEF_PSTD_BUFFER_FLAG) {
+            if(pes->extension.flags & TSD_PEF_PSTD_BUFFER_FLAG) {
                 pes->extension.pstd_buffer_scale = ((*ptr) >> 5) & 0x01;
                 pes->extension.pstd_buffer_size = parse_uint16(*((uint16_t*)ptr)) & 0x1FFF;
                 ptr = &ptr[2];
             }
-            if(pes->extension.flags & PEF_PES_EXTENSION_FLAG_2) {
+            if(pes->extension.flags & TSD_PEF_PES_EXTENSION_FLAG_2) {
                 pes->extension.pes_extension_field_length = (*ptr) & 0x7F;
                 ptr = &ptr[1 + pes->extension.pes_extension_field_length];
             }
@@ -882,10 +883,10 @@ TSCode parse_pes(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
-TSCode parse_descriptors(TSDemuxContext *ctx,
-                         const uint8_t *data,
-                         size_t size,
-                         DescriptorData *descriptorData)
+TSDCode tsd_parse_descriptors(TSDemuxContext *ctx,
+                              const uint8_t *data,
+                              size_t size,
+                              TSDDescriptorData *descriptorData)
 {
 
     if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
@@ -898,8 +899,8 @@ TSCode parse_descriptors(TSDemuxContext *ctx,
         descriptorData->descriptors = NULL;
         descriptorData->descriptors_length = 0;
     } else {
-        descriptorData->descriptors = (Descriptor*) ctx->calloc(count,
-                                      sizeof(Descriptor));
+        descriptorData->descriptors = (TSDDescriptor*) ctx->calloc(count,
+                                      sizeof(TSDDescriptor));
         if(!descriptorData->descriptors) return TSD_OUT_OF_MEMORY;
         descriptorData->descriptors_length = count;
     }
@@ -907,7 +908,7 @@ TSCode parse_descriptors(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
-TSCode data_context_init(TSDemuxContext *ctx, DataContext *dataCtx)
+TSDCode tsd_data_context_init(TSDemuxContext *ctx, TSDDataContext *dataCtx)
 {
     if(ctx == NULL)         return TSD_INVALID_CONTEXT;
     if(dataCtx == NULL)     return TSD_INVALID_ARGUMENT;
@@ -920,20 +921,23 @@ TSCode data_context_init(TSDemuxContext *ctx, DataContext *dataCtx)
     return TSD_OK;
 }
 
-TSCode data_context_destroy(TSDemuxContext *ctx, DataContext *dataCtx)
+TSDCode tsd_data_context_destroy(TSDemuxContext *ctx, TSDDataContext *dataCtx)
 {
     if(ctx == NULL)         return TSD_INVALID_CONTEXT;
     if(dataCtx == NULL)     return TSD_INVALID_ARGUMENT;
 
     if(dataCtx->buffer != NULL) {
         ctx->free(dataCtx->buffer);
-        memset(dataCtx, 0, sizeof(DataContext));
+        memset(dataCtx, 0, sizeof(TSDDataContext));
     }
 
     return TSD_OK;
 }
 
-TSCode data_context_write(TSDemuxContext *ctx, DataContext *dataCtx, const uint8_t *data, size_t size)
+TSDCode tsd_data_context_write(TSDemuxContext *ctx,
+                               TSDDataContext *dataCtx,
+                               const uint8_t *data,
+                               size_t size)
 {
     if(ctx == NULL)         return TSD_INVALID_CONTEXT;
     if(dataCtx == NULL)     return TSD_INVALID_ARGUMENT;
@@ -965,7 +969,7 @@ TSCode data_context_write(TSDemuxContext *ctx, DataContext *dataCtx, const uint8
     return TSD_OK;
 }
 
-TSCode data_context_reset(TSDemuxContext *ctx, DataContext *dataCtx)
+TSDCode tsd_data_context_reset(TSDemuxContext *ctx, TSDDataContext *dataCtx)
 {
     if(ctx == NULL)         return TSD_INVALID_CONTEXT;
     if(dataCtx == NULL)     return TSD_INVALID_ARGUMENT;
@@ -974,18 +978,18 @@ TSCode data_context_reset(TSDemuxContext *ctx, DataContext *dataCtx)
     return TSD_OK;
 }
 
-TSCode extract_table_data(TSDemuxContext *ctx,
-                          TSPacket *hdr,
-                          Table *table,
-                          uint8_t **mem,
-                          size_t *size)
+TSDCode tsd_extract_table_data(TSDemuxContext *ctx,
+                               TSDPacket *hdr,
+                               TSDTable *table,
+                               uint8_t **mem,
+                               size_t *size)
 {
-    memset(table, 0, sizeof(Table));
-    TSCode res = parse_table(ctx, hdr, table);
+    memset(table, 0, sizeof(TSDTable));
+    TSDCode res = tsd_parse_table(ctx, hdr, table);
 
     if(res != TSD_OK && res != TSD_INCOMPLETE_TABLE) {
         // clear the active buffer if it is set
-        data_context_reset(ctx, ctx->buffers.active);
+        tsd_data_context_reset(ctx, ctx->buffers.active);
         ctx->buffers.active = NULL;
         return res;
     }
@@ -997,8 +1001,8 @@ TSCode extract_table_data(TSDemuxContext *ctx,
 
     // get the data context for the table in question using the first section
     // as a reference.
-    TableSection *section = &table->sections[0];
-    DataContext *data = NULL;
+    TSDTableSection *section = &table->sections[0];
+    TSDDataContext *data = NULL;
     res = get_data_context(ctx,
                            section->table_id,
                            section->table_id_extension,
@@ -1023,7 +1027,7 @@ TSCode extract_table_data(TSDemuxContext *ctx,
 
     void *block = ctx->malloc(block_size);
     if(!block) {
-        data_context_reset(ctx, data);
+        tsd_data_context_reset(ctx, data);
         ctx->buffers.active = NULL;
         return TSD_OUT_OF_MEMORY;
     }
@@ -1035,7 +1039,7 @@ TSCode extract_table_data(TSDemuxContext *ctx,
 
     // go through all the sections and copy them into our buffer
     for(; i<table->length; ++i) {
-        TableSection *sec = &table->sections[i];
+        TSDTableSection *sec = &table->sections[i];
         if(!sec->section_data || sec->section_data_length == 0) {
             continue;
         }
@@ -1054,29 +1058,29 @@ TSCode extract_table_data(TSDemuxContext *ctx,
     *mem = block;
 
     // reset the block of data
-    data_context_reset(ctx, data);
+    tsd_data_context_reset(ctx, data);
 
     return TSD_OK;
 }
 
-TSCode demux_pat(TSDemuxContext *ctx, TSPacket *hdr)
+TSDCode demux_pat(TSDemuxContext *ctx, TSDPacket *hdr)
 {
     uint8_t *block = NULL;
     size_t written = 0;
-    Table table;
-    TSCode res = extract_table_data(ctx,
-                                    hdr,
-                                    &table,
-                                    &block,
-                                    &written);
+    TSDTable table;
+    TSDCode res = tsd_extract_table_data(ctx,
+                                         hdr,
+                                         &table,
+                                         &block,
+                                         &written);
     if(res != TSD_OK) {
         return res;
     }
 
     // parse the PAT
-    PATData *pat = &ctx->pat.value;
-    memset(pat, 0, sizeof(PATData));
-    res = parse_pat(ctx, block, written, pat);
+    TSDPATData *pat = &ctx->pat.value;
+    memset(pat, 0, sizeof(TSDPATData));
+    res = tsd_parse_pat(ctx, block, written, pat);
 
     if(TSD_OK == res) {
         ctx->pat.valid = 1;
@@ -1090,7 +1094,7 @@ TSCode demux_pat(TSDemuxContext *ctx, TSPacket *hdr)
             }
             // allocate new array
             if(pat_len > 0) {
-                ctx->pmt.values = (PMTData*) ctx->calloc(pat_len, sizeof(PMTData));
+                ctx->pmt.values = (TSDPMTData*) ctx->calloc(pat_len, sizeof(TSDPMTData));
                 if(!ctx->pmt.values) {
                     ctx->free(block);
                     return TSD_OUT_OF_MEMORY;
@@ -1116,21 +1120,21 @@ TSCode demux_pat(TSDemuxContext *ctx, TSPacket *hdr)
     return TSD_OK;
 }
 
-TSCode demux_pmt(TSDemuxContext *ctx, TSPacket *hdr, size_t pmt_idx)
+TSDCode demux_pmt(TSDemuxContext *ctx, TSDPacket *hdr, size_t pmt_idx)
 {
     uint8_t *block = NULL;
     size_t written = 0;
-    Table table;
-    TSCode res = extract_table_data(ctx,
-                                    hdr,
-                                    &table,
-                                    &block,
-                                    &written);
+    TSDTable table;
+    TSDCode res = tsd_extract_table_data(ctx,
+                                         hdr,
+                                         &table,
+                                         &block,
+                                         &written);
     if(res != TSD_OK) {
         return res;
     }
-    // parse the PMT Table
-    res = parse_pmt(ctx, block, written, &ctx->pmt.values[pmt_idx]);
+    // parse the PMT TSDTable
+    res = tsd_parse_pmt(ctx, block, written, &ctx->pmt.values[pmt_idx]);
     if(TSD_OK == res) {
         if(ctx->event_cb) {
             ctx->event_cb(ctx, TSD_EVENT_PMT, (void*)&ctx->pmt.values[pmt_idx]);
@@ -1143,33 +1147,33 @@ TSCode demux_pmt(TSDemuxContext *ctx, TSPacket *hdr, size_t pmt_idx)
     return res;
 }
 
-TSCode demux_descriptors(TSDemuxContext *ctx, TSPacket *hdr)
+TSDCode demux_descriptors(TSDemuxContext *ctx, TSDPacket *hdr)
 {
     uint8_t *block = NULL;
     size_t written = 0;
-    Table table;
-    TSCode res = extract_table_data(ctx,
-                                    hdr,
-                                    &table,
-                                    &block,
-                                    &written);
+    TSDTable table;
+    TSDCode res = tsd_extract_table_data(ctx,
+                                         hdr,
+                                         &table,
+                                         &block,
+                                         &written);
     if(res != TSD_OK) {
         return res;
     }
 
     // parse all the outter descriptors
-    DescriptorData descriptorData;
-    res = parse_descriptors(ctx, block, written, &descriptorData);
+    TSDDescriptorData descriptorData;
+    res = tsd_parse_descriptors(ctx, block, written, &descriptorData);
 
-    // call the callback with the descriptors and Table data
+    // call the callback with the descriptors and TSDTable data
     if(TSD_OK == res) {
         if(ctx->event_cb) {
-            EventId event;
+            TSDEventId event;
             switch(hdr->pid) {
-            case PID_CAT:
+            case TSD_PID_CAT:
                 event = TSD_EVENT_CAT;
                 break;
-            case PID_TSDT:
+            case TSD_PID_TSDT:
                 event = TSD_EVENT_TSDT;
                 break;
             default:
@@ -1183,10 +1187,10 @@ TSCode demux_descriptors(TSDemuxContext *ctx, TSPacket *hdr)
     return TSD_OK;
 }
 
-size_t demux(TSDemuxContext *ctx,
-             void *data,
-             size_t size,
-             TSCode *code)
+size_t tsd_demux(TSDemuxContext *ctx,
+                 void *data,
+                 size_t size,
+                 TSDCode *code)
 {
     if(ctx == NULL)         return TSD_INVALID_CONTEXT;
     if(data == NULL)        return TSD_INVALID_DATA;
@@ -1200,11 +1204,11 @@ size_t demux(TSDemuxContext *ctx,
         *code = TSD_OK;
     }
 
-    TSPacket hdr;
-    TSCode res;
+    TSDPacket hdr;
+    TSDCode res;
 
     while(remaining >= TSD_TSPACKET_SIZE) {
-        res = parse_packet_header(ctx, ptr, size, &hdr);
+        res = tsd_parse_packet_header(ctx, ptr, size, &hdr);
         // if we run into an error try parsing the next packet.
         if(res != TSD_OK) {
             // if the error is due to an invalid sync byte, see if we can
@@ -1231,9 +1235,9 @@ size_t demux(TSDemuxContext *ctx,
         ptr += TSD_TSPACKET_SIZE;
 
         // skip packets with errors and null packets
-        if((hdr.flags & TSPF_TRANSPORT_ERROR_INDICATOR) ||
-           (hdr.pid == PID_NULL_PACKETS) ||
-           (hdr.adaptation_field_control == AFC_RESERVED)) {
+        if((hdr.flags & TSD_PF_TRAN_ERR_INDICATOR) ||
+           (hdr.pid == TSD_PID_NULL_PACKETS) ||
+           (hdr.adaptation_field_control == TSD_AFC_RESERVED)) {
             continue;
         }
 
@@ -1252,18 +1256,18 @@ size_t demux(TSDemuxContext *ctx,
             ctx->pids_length++;
         }
 
-        if(hdr.pid == PID_PAT) {
+        if(hdr.pid == TSD_PID_PAT) {
             res = demux_pat(ctx, &hdr);
             if(res != TSD_OK && res != TSD_INCOMPLETE_TABLE) {
                 return res;
             }
-        } else if(hdr.pid == PID_CAT || hdr.pid == PID_TSDT) {
+        } else if(hdr.pid == TSD_PID_CAT || hdr.pid == TSD_PID_TSDT) {
             res = demux_descriptors(ctx, &hdr);
             if(res != TSD_OK && res != TSD_INCOMPLETE_TABLE) {
                 return res;
             }
-        } else if (hdr.pid > PID_RESERVED_NON_ATSC &&
-                   hdr.pid <= PID_GENERAL_PURPOSE) {
+        } else if (hdr.pid > TSD_PID_RESERVED_NON_ATSC &&
+                   hdr.pid <= TSD_PID_GENERAL_PURPOSE) {
             // check to see if this PID is a PMT
             int parsed = 0;
             if(ctx->pat.valid) {
@@ -1286,25 +1290,25 @@ size_t demux(TSDemuxContext *ctx,
 
             // if this isn't a PMT PID, check to usee if the user has registerd it
             if(parsed == 0) {
-                if(hdr.flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
+                if(hdr.flags & TSD_PF_PAYLOAD_UNIT_START_IND) {
                     size_t i;
                     for(i=0; i < ctx->registered_pids_length; ++i) {
                         if(ctx->registered_pids[i] != hdr.pid || !hdr.data_bytes) {
                             continue;
                         }
                         const uint8_t *ptr = hdr.data_bytes;
-                        DataContext *dataCtx = ctx->registered_pids_data[i];
+                        TSDDataContext *dataCtx = ctx->registered_pids_data[i];
                         size_t ptr_len = hdr.data_bytes_length;
-                        if(hdr.flags & TSPF_PAYLOAD_UNIT_START_INDICATOR) {
+                        if(hdr.flags & TSD_PF_PAYLOAD_UNIT_START_IND) {
                             uint8_t pointer_field = *ptr;
                             if(pointer_field >= ptr_len) {
                                 continue;
                             }
                             ptr = &ptr[pointer_field+1];
                             ptr_len -= (pointer_field + 1);
-                            data_context_reset(ctx, dataCtx);
+                            tsd_data_context_reset(ctx, dataCtx);
                         }
-                        data_context_write(ctx, dataCtx, ptr, ptr_len);
+                        tsd_data_context_write(ctx, dataCtx, ptr, ptr_len);
 
                         // get the PES length to see if we have the complete
                         // packet
@@ -1312,8 +1316,8 @@ size_t demux(TSDemuxContext *ctx,
                         if(data_len > 5) {
                             uint16_t pes_len = parse_uint16(*((uint16_t*)&dataCtx->buffer[5])) + 5;
                             if(data_len >= pes_len) {
-                                PESPacket pes;
-                                res = parse_pes(ctx, dataCtx->buffer, data_len, &pes);
+                                TSDPESPacket pes;
+                                res = tsd_parse_pes(ctx, dataCtx->buffer, data_len, &pes);
                                 if(res != TSD_OK) {
                                     printf("bad PES parse\n");
                                 } else {
@@ -1332,7 +1336,7 @@ size_t demux(TSDemuxContext *ctx,
         size_t len = ctx->buffers.length;
         size_t i;
         for(i=0; i<len; ++i) {
-            data_context_destroy(ctx, &ctx->buffers.pool[i]);
+            tsd_data_context_destroy(ctx, &ctx->buffers.pool[i]);
         }
         ctx->free(ctx->buffers.pool);
         ctx->buffers.pool = NULL;
@@ -1342,7 +1346,7 @@ size_t demux(TSDemuxContext *ctx,
     return size - remaining;
 }
 
-TSCode register_pid(TSDemuxContext *ctx, uint16_t pid)
+TSDCode tsd_register_pid(TSDemuxContext *ctx, uint16_t pid)
 {
     if(ctx == NULL)     return TSD_INVALID_CONTEXT;
 
@@ -1355,14 +1359,14 @@ TSCode register_pid(TSDemuxContext *ctx, uint16_t pid)
     }
 
     // make sure we have room to register a new pid
-    if(ctx->registered_pids_length == MAX_PID_REGISTRATIONS) {
-        return TSD_MAX_PID_REGISTRATIONS_REACHED;
+    if(ctx->registered_pids_length == TSD_MAX_PID_REGS) {
+        return TSD_TSD_MAX_PID_REGS_REACHED;
     }
 
     // register the new pid
     ctx->registered_pids[ctx->registered_pids_length] = pid;
-    DataContext *dataContext = (DataContext*) ctx->malloc(sizeof(DataContext));
-    TSCode res = data_context_init(ctx, dataContext);
+    TSDDataContext *dataContext = (TSDDataContext*) ctx->malloc(sizeof(TSDDataContext));
+    TSDCode res = tsd_data_context_init(ctx, dataContext);
     if(res != TSD_OK) {
         ctx->free(dataContext);
         return res;
@@ -1373,7 +1377,7 @@ TSCode register_pid(TSDemuxContext *ctx, uint16_t pid)
     return TSD_OK;
 }
 
-TSCode deregister_pid(TSDemuxContext *ctx, uint16_t pid)
+TSDCode tsd_deregister_pid(TSDemuxContext *ctx, uint16_t pid)
 {
     if(ctx == NULL)     return TSD_INVALID_CONTEXT;
 

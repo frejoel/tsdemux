@@ -17,21 +17,21 @@ int main(int argc, char** argv)
 
 void test_init(void)
 {
-    test_start("data_context_init");
+    test_start("tsd_data_context_init");
 
-    TSCode res;
+    TSDCode res;
     TSDemuxContext ctx;
-    DataContext dataCtx;
+    TSDDataContext dataCtx;
 
-    set_default_context(&ctx);
+    tsd_set_default_context(&ctx);
 
-    res = data_context_init(NULL, &dataCtx);
+    res = tsd_data_context_init(NULL, &dataCtx);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "null context");
-    res = data_context_init(&ctx, NULL);
+    res = tsd_data_context_init(&ctx, NULL);
     test_assert_equal(res, TSD_INVALID_ARGUMENT, "null data context");
-    res = data_context_init(NULL, NULL);
+    res = tsd_data_context_init(NULL, NULL);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "null context and data context");
-    res = data_context_init(&ctx, &dataCtx);
+    res = tsd_data_context_init(&ctx, &dataCtx);
     test_assert_equal(res, TSD_OK, "valid context");
 
     test_assert(dataCtx.buffer != NULL, "buffer");
@@ -39,30 +39,30 @@ void test_init(void)
     test_assert_equal_ptr((size_t)dataCtx.buffer, (size_t)dataCtx.write, "write position");
     test_assert_equal_ptr((size_t)&dataCtx.buffer[dataCtx.size], (size_t)dataCtx.end, "end position");
 
-    data_context_destroy(&ctx, &dataCtx);
+    tsd_data_context_destroy(&ctx, &dataCtx);
 
     test_end();
 }
 
 void test_destroy(void)
 {
-    test_start("data_context_destroy");
+    test_start("tsd_data_context_destroy");
 
-    TSCode res;
+    TSDCode res;
     TSDemuxContext ctx;
-    DataContext dataCtx;
+    TSDDataContext dataCtx;
 
-    set_default_context(&ctx);
-    res = data_context_init(&ctx, &dataCtx);
+    tsd_set_default_context(&ctx);
+    res = tsd_data_context_init(&ctx, &dataCtx);
     test_assert_equal(TSD_OK, res, "init");
 
-    res = data_context_destroy(NULL, &dataCtx);
+    res = tsd_data_context_destroy(NULL, &dataCtx);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "null context");
-    res = data_context_destroy(&ctx, NULL);
+    res = tsd_data_context_destroy(&ctx, NULL);
     test_assert_equal(res, TSD_INVALID_ARGUMENT, "null data context");
-    res = data_context_destroy(NULL, NULL);
+    res = tsd_data_context_destroy(NULL, NULL);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "null context and data context");
-    res = data_context_destroy(&ctx, &dataCtx);
+    res = tsd_data_context_destroy(&ctx, &dataCtx);
     test_assert_equal(res, TSD_OK, "valid context");
 
     test_assert(dataCtx.buffer == NULL, "buffer");
@@ -76,14 +76,14 @@ void test_destroy(void)
 
 void test_write(void)
 {
-    test_start("data_context_write");
+    test_start("tsd_data_context_write");
 
-    TSCode res;
+    TSDCode res;
     TSDemuxContext ctx;
-    DataContext dataCtx;
+    TSDDataContext dataCtx;
 
-    set_default_context(&ctx);
-    res = data_context_init(&ctx, &dataCtx);
+    tsd_set_default_context(&ctx);
+    res = tsd_data_context_init(&ctx, &dataCtx);
     test_assert_equal(TSD_OK, res, "init");
 
     // data we will write into the buffer to test
@@ -93,24 +93,24 @@ void test_write(void)
         data[i] = (uint8_t)(i / 4);
     }
 
-    res = data_context_write(NULL, NULL, NULL, 0);
+    res = tsd_data_context_write(NULL, NULL, NULL, 0);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "null context");
-    res = data_context_write(&ctx, NULL, NULL, 0);
+    res = tsd_data_context_write(&ctx, NULL, NULL, 0);
     test_assert_equal(res, TSD_INVALID_ARGUMENT, "null data context");
-    res = data_context_write(&ctx, &dataCtx, NULL, 0);
+    res = tsd_data_context_write(&ctx, &dataCtx, NULL, 0);
     test_assert_equal(res, TSD_INVALID_DATA, "null context and data context");
-    res = data_context_write(&ctx, &dataCtx, data, 0);
+    res = tsd_data_context_write(&ctx, &dataCtx, data, 0);
     test_assert_equal(res, TSD_INVALID_DATA_SIZE, "null context and data context");
 
-    res = data_context_write(&ctx, &dataCtx, data, 128);
+    res = tsd_data_context_write(&ctx, &dataCtx, data, 128);
     test_assert_equal(res, TSD_OK, "valid context");
-    res = data_context_write(&ctx, &dataCtx, data+128, 128);
+    res = tsd_data_context_write(&ctx, &dataCtx, data+128, 128);
     test_assert_equal(res, TSD_OK, "valid context");
-    res = data_context_write(&ctx, &dataCtx, data+256, 250);
+    res = tsd_data_context_write(&ctx, &dataCtx, data+256, 250);
     test_assert_equal(res, TSD_OK, "valid context");
-    res = data_context_write(&ctx, &dataCtx, data+506, 294);
+    res = tsd_data_context_write(&ctx, &dataCtx, data+506, 294);
     test_assert_equal(res, TSD_OK, "valid context");
-    res = data_context_write(&ctx, &dataCtx, data+800, 224);
+    res = tsd_data_context_write(&ctx, &dataCtx, data+800, 224);
 
     // check that the data is still correct
     for(i=0; i<1024; ++i) {
@@ -119,21 +119,21 @@ void test_write(void)
         }
     }
 
-    data_context_destroy(&ctx,&dataCtx);
+    tsd_data_context_destroy(&ctx,&dataCtx);
 
     test_end();
 }
 
 void test_reset(void)
 {
-    test_start("data_context_reset");
+    test_start("tsd_data_context_reset");
 
-    TSCode res;
+    TSDCode res;
     TSDemuxContext ctx;
-    DataContext dataCtx;
+    TSDDataContext dataCtx;
 
-    set_default_context(&ctx);
-    res = data_context_init(&ctx, &dataCtx);
+    tsd_set_default_context(&ctx);
+    res = tsd_data_context_init(&ctx, &dataCtx);
     test_assert_equal(TSD_OK, res, "init");
 
     // data we will write into the buffer to test
@@ -143,29 +143,29 @@ void test_reset(void)
         data[i] = (uint8_t)(i / 4);
     }
 
-    res = data_context_reset(&ctx, &dataCtx);
+    res = tsd_data_context_reset(&ctx, &dataCtx);
     test_assert_equal(res, TSD_OK, "valid empty reset");
     // the buffer should equal the write position
     test_assert_equal_ptr((size_t)dataCtx.buffer, (size_t)dataCtx.write, "write position");
 
-    res = data_context_write(&ctx, &dataCtx, data, 512);
+    res = tsd_data_context_write(&ctx, &dataCtx, data, 512);
     test_assert_equal(res, TSD_OK, "valid context");
-    res = data_context_write(&ctx, &dataCtx, data+512, 512);
+    res = tsd_data_context_write(&ctx, &dataCtx, data+512, 512);
     test_assert_equal(res, TSD_OK, "valid context");
 
-    res = data_context_reset(NULL, NULL);
+    res = tsd_data_context_reset(NULL, NULL);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "invalid context");
-    res = data_context_reset(&ctx, NULL);
+    res = tsd_data_context_reset(&ctx, NULL);
     test_assert_equal(res, TSD_INVALID_ARGUMENT, "null data context");
-    res = data_context_reset(NULL, &dataCtx);
+    res = tsd_data_context_reset(NULL, &dataCtx);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "invalid context");
-    res = data_context_reset(&ctx, &dataCtx);
+    res = tsd_data_context_reset(&ctx, &dataCtx);
     test_assert_equal(res, TSD_OK, "valid reset");
 
     // the buffer should equal the write position
     test_assert_equal_ptr((size_t)dataCtx.buffer, (size_t)dataCtx.write, "write position");
 
-    data_context_destroy(&ctx,&dataCtx);
+    tsd_data_context_destroy(&ctx,&dataCtx);
 
     test_end();
 }

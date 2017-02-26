@@ -19,29 +19,29 @@ int main(int argc, char **argv)
 
 void test_input(void)
 {
-    test_start("parse_table inputs");
+    test_start("tsd_parse_table inputs");
 
     TSDemuxContext ctx;
-    TSPacket pkt;
-    Table table;
-    TSCode res;
+    TSDPacket pkt;
+    TSDTable table;
+    TSDCode res;
 
     pkt.sync_byte = 'G';
-    pkt.flags = TSPF_PAYLOAD_UNIT_START_INDICATOR;
+    pkt.flags = TSD_PF_PAYLOAD_UNIT_START_IND;
     pkt.pid = 0x00;
-    pkt.transport_scrambling_control = SC_NO_SCRAMBLING;
-    pkt.adaptation_field_control = AFC_NO_FIELD_PRESENT;
+    pkt.transport_scrambling_control = TSD_SC_NO_SCRAMBLING;
+    pkt.adaptation_field_control = TSD_AFC_NO_FIELD_PRESENT;
     pkt.continuity_counter = 0;
     pkt.data_bytes = NULL;
     pkt.data_bytes_length = 0;
 
-    set_default_context(&ctx);
+    tsd_set_default_context(&ctx);
 
-    res = parse_table(NULL, NULL, NULL);
+    res = tsd_parse_table(NULL, NULL, NULL);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "all null");
-    res = parse_table(&ctx, NULL, NULL);
+    res = tsd_parse_table(&ctx, NULL, NULL);
     test_assert_equal(res, TSD_INVALID_ARGUMENT, "null packet");
-    res = parse_table(&ctx, &pkt, NULL);
+    res = tsd_parse_table(&ctx, &pkt, NULL);
     test_assert_equal(res, TSD_INVALID_ARGUMENT, "null table");
 
     test_end();
@@ -49,12 +49,12 @@ void test_input(void)
 
 void test_parse_longform_table(void)
 {
-    test_start("parse_table parsing long form table");
+    test_start("tsd_parse_table parsing long form table");
 
     TSDemuxContext ctx;
-    TSPacket pkt;
-    Table table;
-    TSCode res;
+    TSDPacket pkt;
+    TSDTable table;
+    TSDCode res;
 
     // this is a long form table
     uint8_t tableData[] = {
@@ -98,23 +98,23 @@ void test_parse_longform_table(void)
     };
 
     pkt.sync_byte = 'G';
-    pkt.flags = TSPF_PAYLOAD_UNIT_START_INDICATOR;
+    pkt.flags = TSD_PF_PAYLOAD_UNIT_START_IND;
     pkt.pid = 0x00;
-    pkt.transport_scrambling_control = SC_NO_SCRAMBLING;
-    pkt.adaptation_field_control = AFC_NO_FIELD_PRESENT;
+    pkt.transport_scrambling_control = TSD_SC_NO_SCRAMBLING;
+    pkt.adaptation_field_control = TSD_AFC_NO_FIELD_PRESENT;
     pkt.continuity_counter = 0;
     pkt.data_bytes = tableData;
     pkt.data_bytes_length = sizeof(tableData);
 
-    set_default_context(&ctx);
+    tsd_set_default_context(&ctx);
 
-    res = parse_table(&ctx, &pkt, &table);
+    res = tsd_parse_table(&ctx, &pkt, &table);
     test_assert_equal(res, TSD_OK, "valid table");
     test_assert_equal(1, table.length, "table length");
-    TableSection *sec = &table.sections[0];
+    TSDTableSection *sec = &table.sections[0];
     test_assert_equal(sec->table_id, 0x01, "table id");
-    test_assert_equal(sec->flags & TBL_SECTION_SYNTAX_INDICATOR, TBL_SECTION_SYNTAX_INDICATOR, "section syntax indicator");
-    test_assert_equal(sec->flags & TBL_CURRENT_NEXT_INDICATOR, TBL_CURRENT_NEXT_INDICATOR, "current next indicator");
+    test_assert_equal(sec->flags & TSD_TBL_SECTION_SYNTAX_INDICATOR, TSD_TBL_SECTION_SYNTAX_INDICATOR, "section syntax indicator");
+    test_assert_equal(sec->flags & TSD_TBL_CURRENT_NEXT_INDICATOR, TSD_TBL_CURRENT_NEXT_INDICATOR, "current next indicator");
     test_assert_equal(sec->section_length, 0x10, "section length");
     test_assert_equal(sec->table_id_extension, 0xFAEB, "transport stream id");
     test_assert_equal(sec->version_number, 0b00001110, "version");
@@ -126,12 +126,12 @@ void test_parse_longform_table(void)
 
 void test_parse_shortform_table(void)
 {
-    test_start("parse_table parsing short form tables");
+    test_start("tsd_parse_table parsing short form tables");
 
     TSDemuxContext ctx;
-    TSPacket pkt;
-    Table table;
-    TSCode res;
+    TSDPacket pkt;
+    TSDTable table;
+    TSDCode res;
 
     // this is a short form table
     uint8_t tableData[] = {
@@ -171,23 +171,23 @@ void test_parse_shortform_table(void)
     };
 
     pkt.sync_byte = 'G';
-    pkt.flags = TSPF_PAYLOAD_UNIT_START_INDICATOR;
+    pkt.flags = TSD_PF_PAYLOAD_UNIT_START_IND;
     pkt.pid = 0x00;
-    pkt.transport_scrambling_control = SC_NO_SCRAMBLING;
-    pkt.adaptation_field_control = AFC_NO_FIELD_PRESENT;
+    pkt.transport_scrambling_control = TSD_SC_NO_SCRAMBLING;
+    pkt.adaptation_field_control = TSD_AFC_NO_FIELD_PRESENT;
     pkt.continuity_counter = 0;
     pkt.data_bytes = tableData;
     pkt.data_bytes_length = sizeof(tableData);
 
-    set_default_context(&ctx);
+    tsd_set_default_context(&ctx);
 
-    res = parse_table(&ctx, &pkt, &table);
+    res = tsd_parse_table(&ctx, &pkt, &table);
     test_assert_equal(res, TSD_OK, "valid table");
     test_assert_equal(1, table.length, "table length");
-    TableSection *sec = &table.sections[0];
+    TSDTableSection *sec = &table.sections[0];
     test_assert_equal(sec->table_id, 0xEA, "table id");
-    test_assert_equal(sec->flags & TBL_SECTION_SYNTAX_INDICATOR, 0, "section syntax indicator");
-    test_assert_equal(sec->flags & TBL_CURRENT_NEXT_INDICATOR, 0, "current next indicator");
+    test_assert_equal(sec->flags & TSD_TBL_SECTION_SYNTAX_INDICATOR, 0, "section syntax indicator");
+    test_assert_equal(sec->flags & TSD_TBL_CURRENT_NEXT_INDICATOR, 0, "current next indicator");
     test_assert_equal(sec->section_length, 0x10, "section length");
     test_assert_equal(sec->table_id_extension, 0, "transport stream id");
     test_assert_equal(sec->version_number, 0, "version");
@@ -199,13 +199,13 @@ void test_parse_shortform_table(void)
 
 void test_parse_multi_packet_table(void)
 {
-    test_start("parse_table parsing multi packet table");
+    test_start("tsd_parse_table parsing multi packet table");
 
     TSDemuxContext ctx;
-    TSPacket pkt;
-    TSPacket pkt2;
-    Table table;
-    TSCode res;
+    TSDPacket pkt;
+    TSDPacket pkt2;
+    TSDTable table;
+    TSDCode res;
 
     // this is a long form table
     uint8_t tableData[] = {
@@ -307,10 +307,10 @@ void test_parse_multi_packet_table(void)
     };
 
     pkt.sync_byte = 'G';
-    pkt.flags = TSPF_PAYLOAD_UNIT_START_INDICATOR;
+    pkt.flags = TSD_PF_PAYLOAD_UNIT_START_IND;
     pkt.pid = 0x00;
-    pkt.transport_scrambling_control = SC_NO_SCRAMBLING;
-    pkt.adaptation_field_control = AFC_NO_FIELD_PRESENT;
+    pkt.transport_scrambling_control = TSD_SC_NO_SCRAMBLING;
+    pkt.adaptation_field_control = TSD_AFC_NO_FIELD_PRESENT;
     pkt.continuity_counter = 0;
     pkt.data_bytes = tableData;
     pkt.data_bytes_length = sizeof(tableData);
@@ -318,33 +318,33 @@ void test_parse_multi_packet_table(void)
     pkt2.sync_byte = 'G';
     pkt2.flags = 0;
     pkt2.pid = 0x00;
-    pkt2.transport_scrambling_control = SC_NO_SCRAMBLING;
-    pkt2.adaptation_field_control = AFC_NO_FIELD_PRESENT;
+    pkt2.transport_scrambling_control = TSD_SC_NO_SCRAMBLING;
+    pkt2.adaptation_field_control = TSD_AFC_NO_FIELD_PRESENT;
     pkt2.continuity_counter = 0;
     pkt2.data_bytes = tableData2;
     pkt2.data_bytes_length = sizeof(tableData2);
 
-    set_default_context(&ctx);
+    tsd_set_default_context(&ctx);
 
-    res = parse_table(&ctx, &pkt, &table);
+    res = tsd_parse_table(&ctx, &pkt, &table);
     test_assert_equal(res, TSD_INCOMPLETE_TABLE, "incomplete table");
-    res = parse_table(&ctx, &pkt2, &table);
+    res = tsd_parse_table(&ctx, &pkt2, &table);
     test_assert_equal(res, TSD_OK, "complete table");
     test_assert_equal(3, table.length, "table length");
 
-    TableSection *sec1 = &table.sections[0];
-    TableSection *sec2 = &table.sections[1];
-    TableSection *sec3 = &table.sections[2];
+    TSDTableSection *sec1 = &table.sections[0];
+    TSDTableSection *sec2 = &table.sections[1];
+    TSDTableSection *sec3 = &table.sections[2];
 
     test_assert_equal(sec1->table_id, 0xC2, "table id 1");
     test_assert_equal(sec2->table_id, 0xD3, "table id 2");
     test_assert_equal(sec3->table_id, 0xE4, "table id 3");
-    test_assert_equal(sec1->flags & TBL_SECTION_SYNTAX_INDICATOR, TBL_SECTION_SYNTAX_INDICATOR, "section syntax indicator 1");
-    test_assert_equal(sec2->flags & TBL_SECTION_SYNTAX_INDICATOR, TBL_SECTION_SYNTAX_INDICATOR, "section syntax indicator 2");
-    test_assert_equal(sec3->flags & TBL_SECTION_SYNTAX_INDICATOR, TBL_SECTION_SYNTAX_INDICATOR, "section syntax indicator 3");
-    test_assert_equal(sec1->flags & TBL_CURRENT_NEXT_INDICATOR, 0, "current next indicator 1");
-    test_assert_equal(sec2->flags & TBL_CURRENT_NEXT_INDICATOR, 0, "current next indicator 2");
-    test_assert_equal(sec3->flags & TBL_CURRENT_NEXT_INDICATOR, 0, "current next indicator 3");
+    test_assert_equal(sec1->flags & TSD_TBL_SECTION_SYNTAX_INDICATOR, TSD_TBL_SECTION_SYNTAX_INDICATOR, "section syntax indicator 1");
+    test_assert_equal(sec2->flags & TSD_TBL_SECTION_SYNTAX_INDICATOR, TSD_TBL_SECTION_SYNTAX_INDICATOR, "section syntax indicator 2");
+    test_assert_equal(sec3->flags & TSD_TBL_SECTION_SYNTAX_INDICATOR, TSD_TBL_SECTION_SYNTAX_INDICATOR, "section syntax indicator 3");
+    test_assert_equal(sec1->flags & TSD_TBL_CURRENT_NEXT_INDICATOR, 0, "current next indicator 1");
+    test_assert_equal(sec2->flags & TSD_TBL_CURRENT_NEXT_INDICATOR, 0, "current next indicator 2");
+    test_assert_equal(sec3->flags & TSD_TBL_CURRENT_NEXT_INDICATOR, 0, "current next indicator 3");
     test_assert_equal(sec1->section_length, 0x10, "section length 1");
     test_assert_equal(sec2->section_length, 0x10, "section length 2");
     test_assert_equal(sec3->section_length, 0x9E, "section length 3");

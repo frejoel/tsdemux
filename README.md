@@ -56,6 +56,15 @@ enabled.
 ## Code Coverage
 To output HTML code coverage statistics, use the `COVERAGE=1` argument when
 using the `check` Make target.
+
+Code Coverage uses `gcov`, `lcov` and `gentml` to gather and render statistics.
+If you're using Debian, gcov is more than likely already installed, but you'll
+need `lcov` which will also install `genhtml`.
+```
+ sudo apt-get install lcov
+```
+
+Run the tests with code coverage enabled:
 ```
  make clean
  make check COVERAGE=1

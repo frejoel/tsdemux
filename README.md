@@ -89,8 +89,7 @@ To build and run all unit tests validating the library:
 ```
  make check
 ```
-The unit tests will abort as soon as an error is encountered leaving a message
-in the terminal.
+The unit tests will run individually regardless if any fail.
 
 # Examples
 Examples showing how to use the library are in the `examples` directory.

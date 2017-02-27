@@ -5,8 +5,8 @@ CCOBJDIR = $(CCDIR)/obj
 CFLAGS = -Ibin -Lbin
 LIBS = -ltsdemux
 
-TEST_FILES := test/parse_packet_header.o test/data_context.o test/parse_table.o test/parse_pat.o test/parse_pmt.o test/parse_cat.o test/register_pid.o test/parse_pes_header.o
-EXAMPLE_FILES := examples/demux.o
+OBJ_TESTS := $(patsubst %.c, %.o, $(wildcard test/*.c))
+OBJ_EXAMPLES := $(patsubst %.c, %.o, $(wildcard examples/*.c))
 
 DEBUG ?= 0
 COVERAGE ?= 0
@@ -38,19 +38,12 @@ static:
 	astyle --style=linux -n src/*.h src/*.c
 	$(CC) -o $@ $< $(CFLAGS) $(LIBS)
 
-tests: static $(TEST_FILES)
+tests: static $(OBJ_TESTS)
 
-examples: static $(EXAMPLE_FILES)
+examples: static $(OBJ_EXAMPLES)
 
-check: tests
-	./test/parse_packet_header.o
-	./test/data_context.o
-	./test/parse_table.o
-	./test/parse_pat.o
-	./test/parse_pmt.o
-	./test/parse_cat.o
-	./test/register_pid.o
-	./test/parse_pes_header.o
+check: tests $(OBJ_TESTS)
+	find test/*.o -type f -exec "{}" \;
 ifeq ($(COVERAGE), 1)
 	mkdir -p $(CCDIR)
 	rm -f *.gcno

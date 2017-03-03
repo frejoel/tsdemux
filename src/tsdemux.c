@@ -96,19 +96,6 @@ TSDCode tsd_set_event_callback(TSDemuxContext *ctx, tsd_on_event callback)
     return TSD_OK;
 }
 
-void dump_packet_data(const uint8_t *data)
-{
-    int i=0;
-    for(; i<188; i+=8) {
-        int j=0;
-        for(; j<8; ++j) {
-            printf("%02X ", data[i+j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
-}
-
 TSDCode tsd_parse_packet_header(TSDemuxContext *ctx,
                                 const uint8_t *data,
                                 size_t size,
@@ -1090,7 +1077,7 @@ TSDCode demux_pat(TSDemuxContext *ctx, TSDPacket *hdr)
         // create PMT parsers for each of the Programs
         size_t pat_len = ctx->pat.value.length;
         if(ctx->pmt.capacity < pat_len) {
-            // free the existing dat    a
+            // free the existing data
             if(ctx->pmt.values) {
                 ctx->free(ctx->pmt.values);
                 ctx->pmt.values = NULL;

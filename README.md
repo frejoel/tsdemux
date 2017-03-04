@@ -58,8 +58,8 @@ To output HTML code coverage statistics, use the `COVERAGE=1` argument when
 using the `check` Make target.
 
 Code Coverage uses `gcov`, `lcov` and `gentml` to gather and render statistics.
-If you're using Debian, gcov is more than likely already installed, but you'll
-need `lcov` which will also install `genhtml`.
+If you're using Debian, `gcov` is more than likely already installed, but you'll
+need `lcov` which may also install `genhtml`.
 ```
  sudo apt-get install lcov
 ```
@@ -75,6 +75,30 @@ Failing to clean the project with `make clean` prior to running
 documentation.
 
 The debug option `DEBUG=1` is automatically enabled when `COVERAGE=1` is set.
+
+## Profiling
+To build the library with `gprof` profiling set the variable `PROFILING=1` when
+building the target.
+
+`make tests PROFILING=1`
+This will build the executables with profiling information.
+
+To get a `gprof` report you will need to execute the executable which will
+generate a `gmon.out` file. From there you can export the profiling report using
+`gprof`.
+
+### Example
+This will build the examples with Profiling enabled, run the demux example,
+output the profiling report to `profile_report.txt` and display the text of
+`profile_report.txt` to the screen.
+
+```
+ make clean
+ make examples PROFILING=1
+ ./examples/demux.o
+ gprof examples/demux.o > profile_report.txt
+ less profile_report.txt
+```
 
 ## Linux
 From a terminal:

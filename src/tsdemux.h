@@ -34,7 +34,7 @@
 #define TSD_SYNC_BYTE                           (0x47)
 #define TSD_MESSAGE_LEN                         (128)
 #define TSD_TSPACKET_SIZE                       (188)
-#define TSD_DEFAULT_DATA_CONTEXT_SIZE           (256)
+#define TSD_MEM_PAGE_SIZE                       (1024)
 #define TSD_MAX_PID_REGS                        (16)
 
 /**

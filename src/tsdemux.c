@@ -903,10 +903,10 @@ TSDCode tsd_data_context_init(TSDemuxContext *ctx, TSDDataContext *dataCtx)
     if(ctx == NULL)         return TSD_INVALID_CONTEXT;
     if(dataCtx == NULL)     return TSD_INVALID_ARGUMENT;
 
-    dataCtx->buffer = (uint8_t*)ctx->malloc(TSD_DEFAULT_DATA_CONTEXT_SIZE);
-    dataCtx->end = dataCtx->buffer + TSD_DEFAULT_DATA_CONTEXT_SIZE;
+    dataCtx->buffer = (uint8_t*)ctx->malloc(TSD_MEM_PAGE_SIZE);
+    dataCtx->end = dataCtx->buffer + TSD_MEM_PAGE_SIZE;
     dataCtx->write = dataCtx->buffer;
-    dataCtx->size = TSD_DEFAULT_DATA_CONTEXT_SIZE;
+    dataCtx->size = TSD_MEM_PAGE_SIZE;
 
     return TSD_OK;
 }
@@ -938,7 +938,7 @@ TSDCode tsd_data_context_write(TSDemuxContext *ctx,
     size_t space = (size_t)(dataCtx->end - dataCtx->write);
     if(space < size) {
         // reallocate enough memory aligning it to the default size
-        size_t align = TSD_DEFAULT_DATA_CONTEXT_SIZE;
+        size_t align = TSD_MEM_PAGE_SIZE;
         size_t new_size = dataCtx->size + ((((size-space)/align) + 1) * align);
         size_t used = dataCtx->size - space;
 

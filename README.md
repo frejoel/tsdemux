@@ -1,4 +1,4 @@
-# libts
+# tsdemux
 MPEG-TS (ISO/IEC 13818-1) demultiplexer.
 
 ## Overview

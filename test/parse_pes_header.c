@@ -1,6 +1,7 @@
 #include "test.h"
 #include <tsdemux.h>
 #include <stdio.h>
+#include <string.h>
 
 void test_parse_pes_input(void);
 void test_parse_pes_data(void);
@@ -63,7 +64,7 @@ void test_parse_pes_data(void)
         0b01101000, // dsm trick play mode(3), field id(2), intra slice(1), freq trunc(2)
         0xAB, 0xBA, // crc flag
         // Extension
-        0b01101111, //flags
+        0b01101111, //flags ,prv data(1), pack header(1), prog pk counter(1), pstd buffer(1), reserved(3), pes ext.2(1)
         0x19, // Pack header length
             // Pack header
             0x00, 0x00, 0x01, 0xBA, // pack start code
@@ -97,7 +98,7 @@ void test_parse_pes_data(void)
     res = tsd_parse_pes(&ctx, buffer, sizeof(buffer), &pes);
     test_assert_equal(TSD_OK, res, "valid pes parsing");
 
-    test_assert_equal(pes.start_code_prefix, 0x01, "pes start code prefix");
+    test_assert_equal(pes.start_code, 0x01, "pes start code prefix");
     test_assert_equal(pes.stream_id, 0xE0, "stream id");
     test_assert_equal(pes.packet_length, 0x3C, "packet length");
     test_assert_equal(pes.scrambling_control, 0x00, "scrambling control");
@@ -122,7 +123,43 @@ void test_parse_pes_data(void)
     test_assert_equal(pes.trick_mode.field_id, 0x01, "field id");
     test_assert_equal(pes.trick_mode.intra_slice_refresh, 0x00, "intra slice refresh");
     test_assert_equal(pes.trick_mode.frequency_truncation, 0x00, "frequency truncation");
-    //test_assert_equal(pes., 0x, "");
+    test_assert_equal(pes.previous_pes_packet_crc, 0xABBA, "crc");
+    test_assert_equal(pes.extension.flags & TSD_PEF_PES_PRIVATE_DATA_FLAG, 0x00, "pes private data");
+    test_assert_equal(pes.extension.flags & TSD_PEF_PACK_HEADER_FIELD_FLAG, TSD_PEF_PACK_HEADER_FIELD_FLAG, "pack header");
+    test_assert_equal(pes.extension.flags & TSD_PEF_PROGRAM_PACKET_SEQUENCE_COUNTER_FLAG, TSD_PEF_PROGRAM_PACKET_SEQUENCE_COUNTER_FLAG, "program packet seq counter");
+    test_assert_equal(pes.extension.flags & TSD_PEF_PSTD_BUFFER_FLAG, 0x00, "p-std buffer");
+    test_assert_equal(pes.extension.flags & TSD_PEF_PES_EXTENSION_FLAG_2, TSD_PEF_PES_EXTENSION_FLAG_2, "ext. flag 2");
+    test_assert_equal(pes.extension.pack_header.length, 0x19, "pack header length");
+    test_assert_equal(pes.extension.pack_header.start_code, 0x1BA, "pack header start code");
+    test_assert_equal(pes.extension.pack_header.system_clock_ref_base, 0x00, "system clock ref base");
+    test_assert_equal(pes.extension.pack_header.system_clock_ref_ext, 0x00, "system clock red ext.");
+    test_assert_equal(pes.extension.pack_header.program_mux_rate, 0x2AF378, "program mux rate");
+    test_assert_equal(pes.extension.pack_header.stuffing_length, 0x03, "pack stuffing length");
+    TSDSystemHeader *syshdr = &pes.extension.pack_header.system_header;
+    test_assert_equal(syshdr->start_code, 0x1BB, "system header start code");
+    test_assert_equal(syshdr->length, 0x0C, "system header length");
+    test_assert_equal(syshdr->rate_bound, 0x00, "system header rate bound");
+    test_assert_equal(syshdr->audio_bound, 0x3C, "system header audio bound");
+    test_assert_equal(syshdr->flags & TSD_SHF_FIXED_FLAG, TSD_SHF_FIXED_FLAG, "system header fixed flag");
+    test_assert_equal(syshdr->flags & TSD_SHF_CSPS_FLAG, 0x00, "system header cspd flag");
+    test_assert_equal(syshdr->flags & TSD_SHF_SYSTEM_AUDIO_LOCK_FLAG, TSD_SHF_SYSTEM_AUDIO_LOCK_FLAG, "system header audio lock");
+    test_assert_equal(syshdr->flags & TSD_SHF_SYSTEM_VIDEO_LOCK_FLAG, 0x00, "system header video lock");
+    test_assert_equal(syshdr->video_bound, 0x06, "system header video bound");
+    test_assert_equal(syshdr->flags & TSD_SHF_PACKET_RATE_RESTICTION_FLAG, TSD_SHF_PACKET_RATE_RESTICTION_FLAG, "system header packet rate restriction");
+    test_assert_equal(syshdr->stream_count, 0x02, "system header stream count");
+    test_assert_equal(syshdr->streams[0].stream_id, 0xF0, "system header stream id 0");
+    test_assert_equal(syshdr->streams[0].pstd_buffer_bound_scale, 0x01, "system header bound scale 0");
+    test_assert_equal(syshdr->streams[0].pstd_buffer_size_bound, 0xBC, "system header bound size 0");
+    test_assert_equal(syshdr->streams[1].stream_id, 0xC1, "system header stream id 1");
+    test_assert_equal(syshdr->streams[1].pstd_buffer_bound_scale, 0x00, "system header bound scale 1");
+    test_assert_equal(syshdr->streams[1].pstd_buffer_size_bound, 0x1104, "system header bound size 1");
+    test_assert_equal(pes.extension.program_packet_sequence_counter, 0x0D, "sequence counter");
+    test_assert_equal(pes.extension.mpeg1_mpeg2_identifier, 0x01, "mpeg1 mpeg2 indentifier");
+    test_assert_equal(pes.extension.original_stuff_length, 0x03, "original stuff length");
+    test_assert_equal(pes.extension.pes_extension_field_length, 0x02, "pes extension field length");
+    test_assert_equal(pes.data_bytes_length, 0x05, "pes data length");
+    char tmp_data[] = {0xAB, 0xBC, 0xDE, 0xF1, 0x23};
+    test_assert_equal(memcmp(pes.data_bytes, tmp_data, 5), 0x00, "pes data");
 
     test_end();
 }

@@ -39,8 +39,8 @@
 
 /**
  * @file
- * @ingroup libts
- * Libts external API header
+ * @ingroup tsdemux
+ * Libtsdemux external API header
  */
 
 // forward declarations
@@ -263,10 +263,10 @@ typedef enum TSDTrickModeControl {
  * PES Extension Flags.
  */
 typedef enum TSDPESExtensionFlags {
-    TSD_PEF_PES_PRIVATE_DATA_FLAG                 = 0x08,
-    TSD_PEF_PACK_HEADER_FIELD_FLAG                = 0x07,
-    TSD_PEF_PROGRAM_PACKET_SEQUENCE_COUNTER_FLAG  = 0x06,
-    TSD_PEF_PSTD_BUFFER_FLAG                      = 0x05,
+    TSD_PEF_PES_PRIVATE_DATA_FLAG                 = 0x80,
+    TSD_PEF_PACK_HEADER_FIELD_FLAG                = 0x40,
+    TSD_PEF_PROGRAM_PACKET_SEQUENCE_COUNTER_FLAG  = 0x20,
+    TSD_PEF_PSTD_BUFFER_FLAG                      = 0x10,
     TSD_PEF_PES_EXTENSION_FLAG_2                  = 0x01,
 } TSDPESExtensionFlags;
 
@@ -278,7 +278,7 @@ typedef enum TSDSystemHeaderFlags {
     TSD_SHF_CSPS_FLAG                             = 0x01000000,
     TSD_SHF_SYSTEM_AUDIO_LOCK_FLAG                = 0x00800000,
     TSD_SHF_SYSTEM_VIDEO_LOCK_FLAG                = 0x00400000,
-    TSD_SHF_PACKET_RATE_RESTICTION_FLAG           = 0x00010000,
+    TSD_SHF_PACKET_RATE_RESTICTION_FLAG           = 0x00008000,
 } TSDSystemHeaderFlags;
 
 /**
@@ -387,7 +387,7 @@ typedef struct TSDDSMTrickMode {
 typedef struct TSDSystemHeaderStream {
     uint8_t stream_id;
     uint8_t pstd_buffer_bound_scale;
-    uint8_t pstd_buffer_size_bound;
+    uint16_t pstd_buffer_size_bound;
 } TSDSystemHeaderStream;
 
 /**
@@ -409,12 +409,11 @@ typedef struct TSDSystemHeader {
  */
 typedef struct TSDPackHeader {
     uint8_t length;
-    uint32_t pack_start_code;
+    uint32_t start_code;
     uint64_t system_clock_ref_base;
     uint16_t system_clock_ref_ext;
     uint32_t program_mux_rate;
     uint8_t stuffing_length;
-    uint32_t system_header_start_code;
     TSDSystemHeader system_header;
 } TSDPackHeader;
 
@@ -437,7 +436,7 @@ typedef struct TSDPESExtension {
  * PES Packet.
  */
 typedef struct TSDPESPacket {
-    uint32_t start_code_prefix;
+    uint32_t start_code;
     uint8_t stream_id;
     uint16_t packet_length;
     TSDPESScramblingControl scrambling_control;

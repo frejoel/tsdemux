@@ -706,8 +706,8 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
     const uint8_t *end = &ptr[size];
 
     uint32_t value = parse_u32(ptr);
-    pes->start_code_prefix = (value >> 8);
-    if(pes->start_code_prefix != 0x01) return TSD_INVALID_START_CODE_PREFIX;
+    pes->start_code = (value >> 8);
+    if(pes->start_code != 0x01) return TSD_INVALID_START_CODE_PREFIX;
 
     pes->stream_id = (uint8_t)(value & 0x000000FF);
     ptr = &ptr[4];
@@ -796,7 +796,7 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
                 TSDPackHeader *pheader = &pes->extension.pack_header;
                 pheader->length = *ptr;
                 ptr++;
-                pheader->pack_start_code = parse_u32(ptr);
+                pheader->start_code = parse_u32(ptr);
                 ptr = &ptr[4];
                 uint64_t value = parse_u64(ptr);
                 pheader->system_clock_ref_base =
@@ -817,10 +817,10 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
                 ptr = &ptr[4];
                 sysh->length = parse_u16(ptr);
                 ptr = &ptr[2];
-                sysh->rate_bound = (parse_u32(ptr) >> 10) & 0x003FFFFF;
+                sysh->rate_bound = (parse_u32(ptr) >> 9) & 0x003FFFFF;
                 ptr = &ptr[3];
                 sysh->audio_bound = (*ptr) >> 2;
-                sysh->flags = parse_u32(ptr) & 0x03E08000;
+                sysh->flags = parse_u32(ptr) & 0x03C08000;
                 ptr++;
                 sysh->video_bound = (*ptr) & 0x1F;
                 ptr = &ptr[2];

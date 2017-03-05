@@ -1,5 +1,6 @@
 #include "test.h"
 #include <tsdemux.h>
+#include <string.h>
 
 void test_get_version(void);
 
@@ -12,7 +13,7 @@ void test_get_version(void)
 {
     test_start("get_version");
 
-    char *version = tsd_get_version();
+    const char *version = tsd_get_version();
     test_assert_null(version, "version is NULL");
     int len = strlen(version);
     test_assert(len > 0, "version length is 0");

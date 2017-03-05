@@ -97,6 +97,7 @@ TSDCode tsd_context_destroy(TSDemuxContext *ctx)
     // destroyregistered pid list
     for(i=0; i<size; ++i) {
         tsd_data_context_destroy(ctx, ctx->registered_pids_data[i]);
+        ctx->free(ctx->registered_pids_data[i]);
     }
 
     // destroy data context buffer pool
@@ -452,6 +453,10 @@ TSDCode tsd_parse_table(TSDemuxContext *ctx,
                                            dataCtx->buffer,
                                            dataCtx->write - dataCtx->buffer,
                                            table);
+
+            if(res != TSD_OK) {
+                tsd_table_data_destroy(ctx, table);
+            }
             return res;
         }
     }
@@ -540,11 +545,13 @@ TSDCode tsd_parse_pat(TSDemuxContext *ctx,
     uint16_t *prog_data = NULL;
 
     if(pat->length) {
-        pid_data = (uint16_t*)ctx->realloc(pat->pid, new_length * 2);
-        prog_data = (uint16_t*)ctx->realloc(pat->program_number, new_length * 2);
+        pid_data = (uint16_t*)ctx->realloc(pat->pid,
+                                           new_length * sizeof(uint16_t));
+        prog_data = (uint16_t*)ctx->realloc(pat->program_number,
+                                            new_length * sizeof(uint16_t));
     } else {
-        pid_data = (uint16_t*)ctx->malloc(new_length * 2);
-        prog_data = (uint16_t*)ctx->malloc(new_length * 2);
+        pid_data = (uint16_t*)ctx->malloc(new_length * sizeof(uint16_t));
+        prog_data = (uint16_t*)ctx->malloc(new_length *sizeof(uint16_t));
     }
 
     if(!pid_data || !prog_data) {
@@ -565,6 +572,20 @@ TSDCode tsd_parse_pat(TSDemuxContext *ctx,
     pat->program_number = prog_data;
     pat->length = new_length;
 
+    return TSD_OK;
+}
+
+TSDCode destroy_pat_data(TSDemuxContext *ctx, TSDPATData *pat)
+{
+    if(ctx == NULL)     return TSD_INVALID_CONTEXT;
+    if(pat == NULL)     return TSD_INVALID_ARGUMENT;
+
+    if(pat->length > 0) {
+        ctx->free(pat->program_number);
+        ctx->free(pat->pid);
+    }
+    pat->length = 0;
+    pat->program_number = pat->pid = NULL;
     return TSD_OK;
 }
 
@@ -1005,7 +1026,7 @@ TSDCode tsd_data_context_reset(TSDemuxContext *ctx, TSDDataContext *dataCtx)
     return TSD_OK;
 }
 
-TSDCode tsd_extract_table_data(TSDemuxContext *ctx,
+TSDCode tsd_table_data_extract(TSDemuxContext *ctx,
                                TSDPacket *hdr,
                                TSDTable *table,
                                uint8_t **mem,
@@ -1090,12 +1111,27 @@ TSDCode tsd_extract_table_data(TSDemuxContext *ctx,
     return TSD_OK;
 }
 
+TSDCode tsd_table_data_destroy(TSDemuxContext *ctx, TSDTable *table)
+{
+    if(ctx == NULL)     return TSD_INVALID_CONTEXT;
+    if(table == NULL)   return TSD_INVALID_ARGUMENT;
+
+    if(table->length) {
+        ctx->free(table->sections);
+    }
+
+    table->length = 0;
+    table->sections = NULL;
+
+    return TSD_OK;
+}
+
 TSDCode demux_pat(TSDemuxContext *ctx, TSDPacket *hdr)
 {
     uint8_t *block = NULL;
     size_t written = 0;
     TSDTable table;
-    TSDCode res = tsd_extract_table_data(ctx,
+    TSDCode res = tsd_table_data_extract(ctx,
                                          hdr,
                                          &table,
                                          &block,
@@ -1105,6 +1141,10 @@ TSDCode demux_pat(TSDemuxContext *ctx, TSDPacket *hdr)
     }
 
     // parse the PAT
+    if(ctx->pat.valid == 1) {
+        ctx->pat.valid = 0;
+        destroy_pat_data(ctx, &ctx->pat.value);
+    }
     TSDPATData *pat = &ctx->pat.value;
     memset(pat, 0, sizeof(TSDPATData));
     res = tsd_parse_pat(ctx, block, written, pat);
@@ -1124,6 +1164,7 @@ TSDCode demux_pat(TSDemuxContext *ctx, TSDPacket *hdr)
                 ctx->pmt.values = (TSDPMTData*) ctx->calloc(pat_len, sizeof(TSDPMTData));
                 if(!ctx->pmt.values) {
                     ctx->free(block);
+                    tsd_table_data_destroy(ctx, &table);
                     return TSD_OUT_OF_MEMORY;
                 }
             }
@@ -1138,11 +1179,13 @@ TSDCode demux_pat(TSDemuxContext *ctx, TSDPacket *hdr)
     } else {
         // we're not sure what went wrong... something royal
         ctx->pat.valid = 0;
+        tsd_table_data_destroy(ctx, &table);
         return TSD_PARSE_ERROR;
     }
 
     // cleanup
     ctx->free(block);
+    tsd_table_data_destroy(ctx, &table);
 
     return TSD_OK;
 }
@@ -1152,7 +1195,7 @@ TSDCode demux_pmt(TSDemuxContext *ctx, TSDPacket *hdr, size_t pmt_idx)
     uint8_t *block = NULL;
     size_t written = 0;
     TSDTable table;
-    TSDCode res = tsd_extract_table_data(ctx,
+    TSDCode res = tsd_table_data_extract(ctx,
                                          hdr,
                                          &table,
                                          &block,
@@ -1170,6 +1213,7 @@ TSDCode demux_pmt(TSDemuxContext *ctx, TSDPacket *hdr, size_t pmt_idx)
 
     // cleanup
     ctx->free(block);
+    tsd_table_data_destroy(ctx, &table);
 
     return res;
 }
@@ -1179,7 +1223,7 @@ TSDCode demux_descriptors(TSDemuxContext *ctx, TSDPacket *hdr)
     uint8_t *block = NULL;
     size_t written = 0;
     TSDTable table;
-    TSDCode res = tsd_extract_table_data(ctx,
+    TSDCode res = tsd_table_data_extract(ctx,
                                          hdr,
                                          &table,
                                          &block,
@@ -1210,6 +1254,9 @@ TSDCode demux_descriptors(TSDemuxContext *ctx, TSDPacket *hdr)
             ctx->event_cb(ctx, event, (void*)&descriptorData);
         }
     }
+
+    // cleanup
+    tsd_table_data_destroy(ctx, &table);
 
     return TSD_OK;
 }
@@ -1393,6 +1440,10 @@ TSDCode tsd_register_pid(TSDemuxContext *ctx, uint16_t pid)
     // register the new pid
     ctx->registered_pids[ctx->registered_pids_length] = pid;
     TSDDataContext *dataContext = (TSDDataContext*) ctx->malloc(sizeof(TSDDataContext));
+    if(dataContext == NULL) {
+        return TSD_OUT_OF_MEMORY;
+    }
+
     TSDCode res = tsd_data_context_init(ctx, dataContext);
     if(res != TSD_OK) {
         ctx->free(dataContext);

@@ -791,11 +791,20 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
  *         the table is incomplete and requires more packets to be parsed.
  *         Any other response must be treated as an error.
  */
-TSDCode tsd_extract_table_data(TSDemuxContext *ctx,
+TSDCode tsd_table_data_extract(TSDemuxContext *ctx,
                                TSDPacket *hdr,
                                TSDTable *table,
                                uint8_t **mem,
                                size_t *size);
+
+/**
+ * Destroys Table Data.
+ * Detroys data used in a Table.
+ * @param ctx The context being used to demux.
+ * @param table The table to destroy.
+ * @returns TSD_OK on success.
+ */
+TSDCode tsd_table_data_destroy(TSDemuxContext *ctx, TSDTable *table);
 
 /**
  * Data Content Initializtion.

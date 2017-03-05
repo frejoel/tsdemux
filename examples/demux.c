@@ -19,7 +19,7 @@ int main(int argc, char **charv) {
     // create a demuxing context.
     TSDemuxContext ctx;
     // set default values onto the context.
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
 
     // add a callback.
     // the callback is used to determine which PIDs contain the data we want
@@ -63,6 +63,9 @@ int main(int argc, char **charv) {
 
     // close the file
     fclose(fp);
+
+    // destroy context
+    tsd_context_destroy(&ctx);
 
     return 0;
 }

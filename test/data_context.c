@@ -23,7 +23,7 @@ void test_init(void)
     TSDemuxContext ctx;
     TSDDataContext dataCtx;
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
 
     res = tsd_data_context_init(NULL, &dataCtx);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "null context");
@@ -52,7 +52,7 @@ void test_destroy(void)
     TSDemuxContext ctx;
     TSDDataContext dataCtx;
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
     res = tsd_data_context_init(&ctx, &dataCtx);
     test_assert_equal(TSD_OK, res, "init");
 
@@ -82,7 +82,7 @@ void test_write(void)
     TSDemuxContext ctx;
     TSDDataContext dataCtx;
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
     res = tsd_data_context_init(&ctx, &dataCtx);
     test_assert_equal(TSD_OK, res, "init");
 
@@ -132,7 +132,7 @@ void test_reset(void)
     TSDemuxContext ctx;
     TSDDataContext dataCtx;
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
     res = tsd_data_context_init(&ctx, &dataCtx);
     test_assert_equal(TSD_OK, res, "init");
 

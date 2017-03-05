@@ -35,7 +35,7 @@ void test_input(void)
     pkt.data_bytes = NULL;
     pkt.data_bytes_length = 0;
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
 
     res = tsd_parse_table(NULL, NULL, NULL);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "all null");
@@ -106,7 +106,7 @@ void test_parse_longform_table(void)
     pkt.data_bytes = tableData;
     pkt.data_bytes_length = sizeof(tableData);
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
 
     res = tsd_parse_table(&ctx, &pkt, &table);
     test_assert_equal(res, TSD_OK, "valid table");
@@ -179,7 +179,7 @@ void test_parse_shortform_table(void)
     pkt.data_bytes = tableData;
     pkt.data_bytes_length = sizeof(tableData);
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
 
     res = tsd_parse_table(&ctx, &pkt, &table);
     test_assert_equal(res, TSD_OK, "valid table");
@@ -324,7 +324,7 @@ void test_parse_multi_packet_table(void)
     pkt2.data_bytes = tableData2;
     pkt2.data_bytes_length = sizeof(tableData2);
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
 
     res = tsd_parse_table(&ctx, &pkt, &table);
     test_assert_equal(res, TSD_INCOMPLETE_TABLE, "incomplete table");

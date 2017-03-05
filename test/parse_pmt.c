@@ -47,7 +47,7 @@ void parse_pmt_data(void)
     TSDPMTData pmt;
     TSDCode res;
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
     memset(&pmt, 0, sizeof(pmt));
 
     uint8_t data[] = {
@@ -112,7 +112,7 @@ void parse_pmt_empty_data(void)
     TSDPMTData pmt;
     TSDCode res;
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
     memset(&pmt, 0, sizeof(pmt));
 
     uint8_t data[] = {

@@ -71,9 +71,9 @@ const char* tsd_get_version(void)
     return TSD_VERSION;
 }
 
-TSDCode tsd_set_default_context(TSDemuxContext *ctx)
+TSDCode tsd_context_init(TSDemuxContext *ctx)
 {
-    if(ctx == NULL)                 return TSD_INVALID_CONTEXT;
+    if(ctx == NULL) return TSD_INVALID_CONTEXT;
 
     memset(ctx, 0, sizeof(TSDemuxContext));
 
@@ -84,6 +84,43 @@ TSDCode tsd_set_default_context(TSDemuxContext *ctx)
 
     // initialize the user defined event callback
     ctx->event_cb = (tsd_on_event) NULL;
+
+    return TSD_OK;
+}
+
+TSDCode tsd_context_destroy(TSDemuxContext *ctx)
+{
+    if(ctx == NULL) return TSD_INVALID_CONTEXT;
+
+    int i=0;
+    int size = ctx->registered_pids_length;
+    // destroyregistered pid list
+    for(i=0; i<size; ++i) {
+        tsd_data_context_destroy(ctx, ctx->registered_pids_data[i]);
+    }
+
+    // destroy data context buffer pool
+    size = ctx->buffers.length;
+    for(i=0; i<size; ++i) {
+        tsd_data_context_destroy(ctx, &ctx->buffers.pool[i]);
+    }
+    if(size) {
+        ctx->free(ctx->buffers.pool);
+    }
+
+    // destroy pmt value data
+    if(ctx->pmt.capacity > 0) {
+        ctx->free(ctx->pmt.values);
+    }
+
+    // destroy PAT data
+    if(ctx->pat.valid && ctx->pat.value.length > 0) {
+        ctx->free(ctx->pat.value.pid);
+        ctx->free(ctx->pat.value.program_number);
+    }
+
+    // clear everything
+    memset(&ctx, 0, sizeof(TSDemuxContext));
 
     return TSD_OK;
 }

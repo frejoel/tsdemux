@@ -20,7 +20,7 @@ void test_parse_pat_input(void)
     TSDPATData pat;
     TSDCode res;
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
     memset(&pat, 0, sizeof(pat));
 
     uint8_t data[] = {
@@ -52,7 +52,7 @@ void test_parse_pat_data(void)
     TSDPATData pat;
     TSDCode res;
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
     memset(&pat, 0, sizeof(pat));
 
     uint8_t data[] = {

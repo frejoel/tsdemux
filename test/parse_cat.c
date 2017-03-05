@@ -20,7 +20,7 @@ void test_parse_cat_input(void)
     TSDCATData cat;
     TSDCode res;
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
     memset(&cat, 0, sizeof(cat));
 
     uint8_t data[] = {
@@ -51,7 +51,7 @@ void test_parse_cat_data(void)
     TSDCATData cat;
     TSDCode res;
 
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
     memset(&cat, 0, sizeof(cat));
 
     uint8_t data[] = {

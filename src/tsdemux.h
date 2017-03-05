@@ -615,13 +615,20 @@ typedef struct TSDemuxContext {
 const char* tsd_get_version(void);
 
 /**
- * Set Default Context.
- * Sets default options onto the TSDemuxContext for convience.
+ * Initializes a Demux Context.
+ * Sets default options and initializes a TSDemuxContext.
  * TSDemuxContext must be a valid pointer to a TSDemuxContext object.
- * @param ctx The TSDemuxContext to set default parameters onto.
+ * @param ctx The TSDemuxContext to initialize.
  * @return TSD_OK on success.
  */
-TSDCode tsd_set_default_context(TSDemuxContext *ctx);
+TSDCode tsd_context_init(TSDemuxContext *ctx);
+
+/**
+ * Destroys a previously initialized Demux Context.
+ * @param ctx THe TSDemuxContext to destroy.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_context_destroy(TSDemuxContext *ctx);
 
 /**
  * Set Demux Context's Event Callback.

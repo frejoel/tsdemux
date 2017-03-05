@@ -19,7 +19,7 @@ void test_set_callback(void)
     test_start("tsd_set_event_callback");
 
     TSDemuxContext ctx;
-    tsd_set_default_context(&ctx);
+    tsd_context_init(&ctx);
 
     TSDCode res = tsd_set_event_callback(NULL, NULL);
     test_assert_equal(TSD_INVALID_CONTEXT, res, "invalid context");

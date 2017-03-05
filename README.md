@@ -3,7 +3,7 @@ MPEG-TS (ISO/IEC 13818-1) demultiplexer.
 
 ## Overview
 This library is intended for content analysis and content demultiplexing in
-applications such as adaptive video streaming which tools such as ffmpeg may
+applications such as adaptive video streaming where tools such as ffmpeg may
 not be possible or suitable.
 
 This software is licensed under an MIT license.

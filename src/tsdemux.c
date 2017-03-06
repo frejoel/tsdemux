@@ -121,7 +121,7 @@ TSDCode tsd_context_destroy(TSDemuxContext *ctx)
     }
 
     // clear everything
-    memset(&ctx, 0, sizeof(TSDemuxContext));
+    memset(ctx, 0, sizeof(TSDemuxContext));
 
     return TSD_OK;
 }
@@ -385,10 +385,10 @@ TSDCode tsd_parse_table(TSDemuxContext *ctx,
         // there is a new table section somewhere in this packet.
         // parse the pointer_field.
         size_t pointer_field = *ptr;
-        if(pointer_field >= pkt->data_bytes_length) {
+        if(pointer_field >= pkt->data_bytes_length - 6) {
             return TSD_INVALID_POINTER_FIELD;
         }
-        ptr = &ptr[pointer_field+1];
+        ptr = &ptr[pointer_field + 1];
         ptr_len -= (pointer_field + 1);
         // parse some of the table info so that we can find the TSDDataContext
         // assoicated with this table.
@@ -636,6 +636,30 @@ size_t parse_descriptor(const uint8_t* data,
     return (size_t)(ptr - data);
 }
 
+TSDCode destroy_pmt_data(TSDemuxContext *ctx, TSDPMTData *pmt)
+{
+    if(ctx == NULL)     return TSD_INVALID_CONTEXT;
+    if(pmt == NULL)     return TSD_INVALID_ARGUMENT;
+
+    if(pmt->descriptors_length > 0) {
+        ctx->free(pmt->descriptors);
+    }
+    if(pmt->program_elements_length > 0) {
+        int size = pmt->program_elements_length;
+        int i = 0;
+        for(; i<size; ++i) {
+            TSDProgramElement *prog = &pmt->program_elements[i];
+            if(prog != NULL && prog->descriptors_length > 0) {
+                free(prog->descriptors);
+            }
+        }
+        ctx->free(pmt->program_elements);
+    }
+
+    memset(pmt, 0, sizeof(TSDPMTData));
+    return TSD_OK;
+}
+
 TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
                       const uint8_t *data,
                       size_t size,
@@ -691,6 +715,9 @@ TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
     // there might not be any Program Elements
     if(count == 0) {
         pmt->crc_32 = parse_u32(ptr);
+        ctx->free(pmt->descriptors);
+        pmt->descriptors = NULL;
+        pmt->descriptors_length = 0;
         return TSD_OK;
     }
 
@@ -707,6 +734,7 @@ TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
     // parse the Program Elements
     pmt->program_elements_length = count;
     size_t i;
+    TSDCode res = TSD_OK;
     for(i=0; i<count; ++i) {
         TSDProgramElement *prog = &pmt->program_elements[i];
         prog->stream_type = *ptr;
@@ -726,7 +754,8 @@ TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
 
         // make sure we make enough data to parse the descriptors
         if(&ptr[desc_size] > end) {
-            return TSD_INVALID_DATA_SIZE;
+            res = TSD_INVALID_DATA_SIZE;
+            break;
         }
 
         size_t inner_count = descriptor_count(ptr, desc_size);
@@ -744,7 +773,13 @@ TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
         ptr = &ptr[desc_size];
     }
 
+    if(res != TSD_OK)  {
+        destroy_pmt_data(ctx, pmt);
+        return res;
+    }
+
     pmt->crc_32 = parse_u32(ptr);
+
     return TSD_OK;
 }
 
@@ -1140,11 +1175,13 @@ TSDCode demux_pat(TSDemuxContext *ctx, TSDPacket *hdr)
         return res;
     }
 
-    // parse the PAT
+    // parse the PAT.
+    // cleanup the old PAT data.
     if(ctx->pat.valid == 1) {
         ctx->pat.valid = 0;
         destroy_pat_data(ctx, &ctx->pat.value);
     }
+    // parse the new PAT data.
     TSDPATData *pat = &ctx->pat.value;
     memset(pat, 0, sizeof(TSDPATData));
     res = tsd_parse_pat(ctx, block, written, pat);
@@ -1204,11 +1241,17 @@ TSDCode demux_pmt(TSDemuxContext *ctx, TSDPacket *hdr, size_t pmt_idx)
         return res;
     }
     // parse the PMT TSDTable
-    res = tsd_parse_pmt(ctx, block, written, &ctx->pmt.values[pmt_idx]);
+    //TSDPMTData *pmt = &ctx->pmt.values[pmt_idx];
+    TSDPMTData pmt;
+    memset(&pmt, 0, sizeof(pmt));
+    res = tsd_parse_pmt(ctx, block, written, &pmt);
+
     if(TSD_OK == res) {
         if(ctx->event_cb) {
-            ctx->event_cb(ctx, TSD_EVENT_PMT, (void*)&ctx->pmt.values[pmt_idx]);
+            ctx->event_cb(ctx, TSD_EVENT_PMT, (void*)&pmt);
         }
+        // cleanup
+        destroy_pmt_data(ctx, &pmt);
     }
 
     // cleanup

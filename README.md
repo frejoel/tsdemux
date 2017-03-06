@@ -173,7 +173,7 @@ The framework is a very basic header file, `test/test.h`.
 It's generally a good idea to check for memory leaks by running the examples
 through Valgrind.
 ```
- valgrind --leak-check=yes --log-file=valgrind_report.txt examples/demux.o`
+ valgrind --leak-check=yes --track-origins=yes --log-file=valgrind_report.txt examples/demux.o`
 ```
 Not all warnings in Valgrind are valid errors, compare the results with the
 `master` branch.

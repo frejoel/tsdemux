@@ -80,6 +80,7 @@ typedef void (*tsd_free) (void *mem);
  * Event Callback.
  */
 typedef void (*tsd_on_event) (TSDemuxContext *ctx,
+                              uint16_t pid,
                               TSDEventId id,
                               void *data);
 
@@ -558,9 +559,6 @@ typedef struct TSDemuxContext {
     tsd_realloc realloc;
     tsd_calloc calloc;
     tsd_free free;
-
-    uint16_t pids[1024];
-    size_t pids_length;
 
     /**
      * Registerd PIDs.

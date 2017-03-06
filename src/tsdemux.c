@@ -1185,7 +1185,7 @@ TSDCode demux_pat(TSDemuxContext *ctx, TSDPacket *hdr)
         ctx->pat.valid = 1;
         // call the user callback
         if(ctx->event_cb) {
-            ctx->event_cb(ctx, TSD_EVENT_PAT, (void*)pat);
+            ctx->event_cb(ctx, hdr->pid, TSD_EVENT_PAT, (void*)pat);
         }
     } else {
         // we're not sure what went wrong... something royal
@@ -1221,7 +1221,7 @@ TSDCode demux_pmt(TSDemuxContext *ctx, TSDPacket *hdr, size_t pmt_idx)
 
     if(TSD_OK == res) {
         if(ctx->event_cb) {
-            ctx->event_cb(ctx, TSD_EVENT_PMT, (void*)&pmt);
+            ctx->event_cb(ctx, hdr->pid, TSD_EVENT_PMT, (void*)&pmt);
         }
         // cleanup
         destroy_pmt_data(ctx, &pmt);
@@ -1267,7 +1267,7 @@ TSDCode demux_descriptors(TSDemuxContext *ctx, TSDPacket *hdr)
                 event = TSD_EVENT_TSDT;
                 break;
             }
-            ctx->event_cb(ctx, event, (void*)&descriptorData);
+            ctx->event_cb(ctx, hdr->pid, event, (void*)&descriptorData);
         }
     }
 
@@ -1331,21 +1331,6 @@ size_t tsd_demux(TSDemuxContext *ctx,
             continue;
         }
 
-        // DEBUG: do we already have this PID saved
-        size_t i;
-        int found = 0;
-        for(i=0; i<ctx->pids_length; ++i) {
-            if(ctx->pids[i] == hdr.pid) {
-                found = 1;
-                break;
-            }
-        }
-        // save the PID
-        if(found == 0 && ctx->pids_length < 1024) {
-            ctx->pids[ctx->pids_length] = hdr.pid;
-            ctx->pids_length++;
-        }
-
         if(hdr.pid == TSD_PID_PAT) {
             res = demux_pat(ctx, &hdr);
             if(res != TSD_OK && res != TSD_INCOMPLETE_TABLE) {
@@ -1389,19 +1374,12 @@ size_t tsd_demux(TSDemuxContext *ctx,
                         const uint8_t *ptr = hdr.data_bytes;
                         TSDDataContext *dataCtx = ctx->registered_pids_data[i];
                         size_t ptr_len = hdr.data_bytes_length;
-                        if(hdr.flags & TSD_PF_PAYLOAD_UNIT_START_IND) {
-                            uint8_t pointer_field = *ptr;
-                            if(pointer_field >= ptr_len) {
-                                continue;
-                            }
-                            ptr = &ptr[pointer_field+1];
-                            ptr_len -= (pointer_field + 1);
-                            tsd_data_context_reset(ctx, dataCtx);
+                        if(!(hdr.flags & TSD_PF_PAYLOAD_UNIT_START_IND)) {
+                            continue;
                         }
                         tsd_data_context_write(ctx, dataCtx, ptr, ptr_len);
-
                         // get the PES length to see if we have the complete
-                        // packet
+                        // packet.
                         size_t data_len = dataCtx->write - dataCtx->buffer;
                         if(data_len > 5) {
                             uint16_t pes_len = parse_u16(&dataCtx->buffer[5]) + 5;
@@ -1411,8 +1389,9 @@ size_t tsd_demux(TSDemuxContext *ctx,
                                 if(res != TSD_OK) {
                                     printf("bad PES parse\n");
                                 } else {
-                                    ctx->event_cb(ctx, TSD_EVENT_PID, (void *)&pes);
+                                    ctx->event_cb(ctx, hdr.pid, TSD_EVENT_PID, (void *)&pes);
                                 }
+                                tsd_data_context_reset(ctx, dataCtx);
                             }
                         }
                     }

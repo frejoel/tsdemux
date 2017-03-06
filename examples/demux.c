@@ -8,7 +8,7 @@
 #include <tsdemux.h>
 
 // demux callback (see tsd_set_event_callback for details).
-void event_cb(TSDemuxContext *ctx, TSDEventId event_id, void *data);
+void event_cb(TSDemuxContext *ctx, uint16_t pid, TSDEventId event_id, void *data);
 // prints information about a PAT.
 void print_pat(TSDemuxContext *ctx, void *data);
 // prints information about a PMT.
@@ -64,7 +64,7 @@ int main(int argc, char **charv) {
     return 0;
 }
 
-void event_cb(TSDemuxContext *ctx, TSDEventId event_id, void *data)
+void event_cb(TSDemuxContext *ctx, uint16_t pid, TSDEventId event_id, void *data)
 {
     if(event_id == TSD_EVENT_PAT) {
         print_pat(ctx, data);
@@ -75,6 +75,13 @@ void event_cb(TSDemuxContext *ctx, TSDEventId event_id, void *data)
         // TODO: This is where we would write the PES data into our buffer
         //printf("\n====================\n");
         //printf("PES stream id: %04X\n", pes->stream_id);
+        char fname[128];
+        snprintf(fname, 128, "pes_%X_%X.data", pid, pes->stream_id);
+        FILE *fp = fopen(fname, "ab");
+        if(fp) {
+            fwrite(pes->data_bytes, 1, pes->data_bytes_length, fp);
+            fclose(fp);
+        }
     }
 }
 
@@ -125,11 +132,11 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
             printf("    %d) tag: 0x%04X, length: %d\n", j, des->tag, des->length);
         }
 
-        // register all the video PIDs.
+        // register all the PIDs we come across.
         // this will cause the demuxer to call this callback if it finds
         // any PES data associated with this PID.
-        if(prog->stream_type == 0x00) {
+        //if(prog->stream_type == 0x00) {
             tsd_register_pid(ctx, prog->elementary_pid);
-        }
+        //}
     }
 }

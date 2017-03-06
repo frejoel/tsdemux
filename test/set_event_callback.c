@@ -9,7 +9,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void callback(TSDemuxContext *ctx, TSDEventId id, void *data)
+void callback(TSDemuxContext *ctx, uint16_t pid, TSDEventId id, void *data)
 {
 
 }

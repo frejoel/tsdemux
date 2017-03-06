@@ -26,13 +26,6 @@ int main(int argc, char **charv) {
     // to demux. We also receive PES data for any PIDs that we register later on.
     tsd_set_event_callback(&ctx, event_cb);
 
-    // we'll be a using a TS file from disk.
-    //FILE *fp = fopen("test/data/media_0_0.ts", "rb");
-    FILE *fp = fopen("test/data/friends.ts", "rb");
-    if(!fp) {
-        fprintf(stderr, "Couldn't open test file\n");
-        return 1;
-    }
     // create a buffer on the stack which we'll use to read the file data into.
     // we'll set the buffer size to exactly 10 TS packets but it could be any
     // size.
@@ -46,11 +39,15 @@ int main(int argc, char **charv) {
         // at the end of the do loop, we write back any remainder bytes into
         // the buffer, this is why we write into the buffer at the location
         // &buffer[count - parsed].
-        count = fread(&buffer[count - parsed], 1, 1880 - (count - parsed), fp);
+        count = fread(&buffer[count - parsed], 1, 1880 - (count - parsed), stdin);
 
-        // with res, we could report any errors found during demuxing
-        TSDCode res;
-        parsed = tsd_demux(&ctx, buffer, count, &res);
+        if(count > 0) {
+            // with res, we could report any errors found during demuxing
+            TSDCode res;
+            parsed = tsd_demux(&ctx, buffer, count, &res);
+        }else{
+            parsed = 0;
+        }
         // during 'demux' our callback may be called, so we can safely discard
         // our buffer.
         // we'll copy any unused bytes back into the start of the buffer.
@@ -60,9 +57,6 @@ int main(int argc, char **charv) {
             memcpy(buffer, buffer, count - parsed);
         }
     } while(count > 0);
-
-    // close the file
-    fclose(fp);
 
     // destroy context
     tsd_context_destroy(&ctx);

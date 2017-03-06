@@ -109,11 +109,6 @@ TSDCode tsd_context_destroy(TSDemuxContext *ctx)
         ctx->free(ctx->buffers.pool);
     }
 
-    // destroy pmt value data
-    if(ctx->pmt.capacity > 0) {
-        ctx->free(ctx->pmt.values);
-    }
-
     // destroy PAT data
     if(ctx->pat.valid && ctx->pat.value.length > 0) {
         ctx->free(ctx->pat.value.pid);
@@ -1188,27 +1183,6 @@ TSDCode demux_pat(TSDemuxContext *ctx, TSDPacket *hdr)
 
     if(TSD_OK == res) {
         ctx->pat.valid = 1;
-        // create PMT parsers for each of the Programs
-        size_t pat_len = ctx->pat.value.length;
-        if(ctx->pmt.capacity < pat_len) {
-            // free the existing data
-            if(ctx->pmt.values) {
-                ctx->free(ctx->pmt.values);
-                ctx->pmt.values = NULL;
-            }
-            // allocate new array
-            if(pat_len > 0) {
-                ctx->pmt.values = (TSDPMTData*) ctx->calloc(pat_len, sizeof(TSDPMTData));
-                if(!ctx->pmt.values) {
-                    ctx->free(block);
-                    tsd_table_data_destroy(ctx, &table);
-                    return TSD_OUT_OF_MEMORY;
-                }
-            }
-            ctx->pmt.capacity = pat_len;
-        }
-        ctx->pmt.length = pat_len;
-
         // call the user callback
         if(ctx->event_cb) {
             ctx->event_cb(ctx, TSD_EVENT_PAT, (void*)pat);
@@ -1241,7 +1215,6 @@ TSDCode demux_pmt(TSDemuxContext *ctx, TSDPacket *hdr, size_t pmt_idx)
         return res;
     }
     // parse the PMT TSDTable
-    //TSDPMTData *pmt = &ctx->pmt.values[pmt_idx];
     TSDPMTData pmt;
     memset(&pmt, 0, sizeof(pmt));
     res = tsd_parse_pmt(ctx, block, written, &pmt);

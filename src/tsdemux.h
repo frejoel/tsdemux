@@ -585,15 +585,6 @@ typedef struct TSDemuxContext {
     } pat;
 
     /**
-     * PMT Data.
-     */
-    struct {
-        TSDPMTData *values;
-        size_t length;
-        size_t capacity;
-    } pmt;
-
-    /**
      * Data Context Buffers.
      * Tempoary pool of buffers used during demuxing.
      */

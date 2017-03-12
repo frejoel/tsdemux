@@ -307,6 +307,16 @@ typedef enum TSDEventId {
 } TSDEventId;
 
 /**
+ * Registration Type.
+ * Flags identifying what type of data the user wants to register.
+ * @see tsd_register_pid
+ */
+typedef enum TSDRegType {
+    TSD_REG_PES                     = 0x01,
+    TSD_REG_ADAPTATION_FIELD        = 0x02,
+} TSDRegType;
+
+/**
  * Data Context.
  * Used to persist the session when streaming TS packets through the demux in
  * multiple calls.
@@ -456,6 +466,9 @@ typedef struct TSDPESPacket {
     size_t data_bytes_length;
 } TSDPESPacket;
 
+// re-typing the PESPacket for user callback consistency.
+typedef TSDPESPacket TSPESData;
+
 /**
  * TSDTable Section.
  * Represents any short or long form table section, both PSI and private.
@@ -551,6 +564,15 @@ typedef struct TSDTableData {
 } TSDTableData;
 
 /**
+ * TS Demux Registration.
+ * Lists what data of data the user wants to listen out for.
+ */
+typedef struct TSDemuxRegistration {
+    uint16_t pid;
+    int data_types;
+} TSDemuxRegistration;
+
+/**
  * TS Demux Context.
  * The TSDEmuxContext is used to separate multiple demux tasks.
  */
@@ -564,7 +586,7 @@ typedef struct TSDemuxContext {
      * Registerd PIDs.
      * The PIDs registered for demuxing.
      */
-    uint16_t registered_pids[TSD_MAX_PID_REGS];
+    TSDemuxRegistration registered_pids[TSD_MAX_PID_REGS];
     TSDDataContext *registered_pids_data[TSD_MAX_PID_REGS];
     size_t registered_pids_length;
 
@@ -847,13 +869,15 @@ TSDCode tsd_data_context_reset(TSDemuxContext *ctx, TSDDataContext *dataCtx);
 
 /**
  * Register a PID for demuxing.
- * When a PID is registered the user supplied callback will be called with the
- * data on that PID as it is encountered durinf the demux process.
+ * When a PID is registered, the user supplied callback will be called with the
+ * data associated with that PID as packets are being parsed.
  * @param ctx The context being used to demux.
  * @param pid The PID being registered.
+ * @param reg_data_type What type of data to register.
  * @return TSD_OK on success.
+ * @see TSDRegType
  */
-TSDCode tsd_register_pid(TSDemuxContext *ctx, uint16_t pid);
+TSDCode tsd_register_pid(TSDemuxContext *ctx, uint16_t pid, int reg_data_type);
 
 /**
  * Deregisters a PID for demuxing.

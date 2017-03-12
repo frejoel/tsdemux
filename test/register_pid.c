@@ -22,20 +22,20 @@ void test_register(void)
 
     TSDCode res;
 
-    res = tsd_register_pid(NULL, 0x100);
+    res = tsd_register_pid(NULL, 0x100, TSD_REG_PES);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "invlaid context");
-    res = tsd_register_pid(&ctx, 0x100);
+    res = tsd_register_pid(&ctx, 0x100, TSD_REG_PES);
     test_assert_equal(res, TSD_OK, "valid PID registration");
-    res = tsd_register_pid(&ctx, 0x100);
+    res = tsd_register_pid(&ctx, 0x100, TSD_REG_PES);
     test_assert_equal(res, TSD_PID_ALREADY_REGISTERED, "PID already registered");
 
     int i;
     for(i=1; i< TSD_MAX_PID_REGS; ++i) {
-        res = tsd_register_pid(&ctx, 0x400 + i);
+        res = tsd_register_pid(&ctx, 0x400 + i, TSD_REG_PES);
         test_assert_equal(res, TSD_OK, "valid PID registration");
     }
 
-    res = tsd_register_pid(&ctx, 0xFFFF);
+    res = tsd_register_pid(&ctx, 0xFFFF, TSD_REG_PES);
     test_assert_equal(res, TSD_TSD_MAX_PID_REGS_REACHED, "max PID registration");
 
     test_end();
@@ -54,10 +54,10 @@ void test_deregister(void)
     test_assert_equal(res, TSD_INVALID_CONTEXT, "invalid context");
     res = tsd_deregister_pid(&ctx, 0x100);
     test_assert_equal(res, TSD_PID_NOT_FOUND, "pid not found");
-    res = tsd_register_pid(&ctx, 0x200);
+    res = tsd_register_pid(&ctx, 0x200, TSD_REG_PES | TSD_REG_ADAPTATION_FIELD);
     res = tsd_deregister_pid(&ctx, 0x200);
     test_assert_equal(res, TSD_OK, "remove pid");
-    res = tsd_register_pid(&ctx, 0x200);
+    res = tsd_register_pid(&ctx, 0x200, TSD_REG_PES | TSD_REG_ADAPTATION_FIELD);
     test_assert_equal(res, TSD_OK, "register same PID");
     res = tsd_deregister_pid(&ctx, 0x200);
     test_assert_equal(res, TSD_OK, "remove same PID again");

@@ -273,7 +273,7 @@ void test_parsing_opcr(void)
     test_assert_equal(0xF2, af->orig_program_clock_ref_ext, "original program clock reference extension");
     test_assert_equal(0x03, af->splice_countdown, "splice countdown");
     test_assert_equal(0x03, af->transport_private_data_length, "transport private data length");
-    test_assert_equal_ptr((size_t)(&buffer[20]), (size_t)af->private_data_byte, "private data byte");
+    test_assert_equal_ptr((size_t)(&buffer[20]), (size_t)af->private_data_bytes, "private data byte");
 
     TSDAdaptationFieldExtension *ae = &af->adap_field_ext;
     test_assert_equal(0xE0, ae->length, "adaptation field extension length");

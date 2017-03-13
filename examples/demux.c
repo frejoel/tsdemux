@@ -73,17 +73,32 @@ void event_cb(TSDemuxContext *ctx, uint16_t pid, TSDEventId event_id, void *data
         print_pat(ctx, data);
     }else if(event_id == TSD_EVENT_PMT){
         print_pmt(ctx, data);
-    }else if(event_id == TSD_EVENT_PID) {
+    }else if(event_id == TSD_EVENT_PES) {
         TSDPESPacket *pes = (TSDPESPacket*) data;
-        // TODO: This is where we would write the PES data into our buffer
-        //printf("\n====================\n");
-        //printf("PES stream id: %04X\n", pes->stream_id);
+        // This is where we would write the PES data into our buffer.
+        // We'll create "*.data" files.
         char fname[128];
         snprintf(fname, 128, "pes_%X_%X.data", pid, pes->stream_id);
         FILE *fp = fopen(fname, "ab");
         if(fp) {
             fwrite(pes->data_bytes, 1, pes->data_bytes_length, fp);
             fclose(fp);
+        }
+    }else if(event_id == TSD_EVENT_ADAP_FIELD_PRV_DATA) {
+        // we're only watching for SCTE Adaptions Field Private Data,
+        // so we know that we must parse it as a list of descritors.
+        TSDAdaptationField *adap_field = (TSDAdaptationField*)data;
+        TSDDescriptor *descriptors = NULL;
+        size_t descriptors_length = 0;
+        tsd_descriptor_extract(ctx, adap_field->private_data_bytes, adap_field->transport_private_data_length, &descriptors, &descriptors_length);
+
+        printf("\n====================\n");
+        printf("Descriptors - Adaptation Fields");
+        int i = 0;
+        for(;descriptors_length;++i) {
+            TSDDescriptor *des = &descriptors[i];
+            printf("  %d) tag: (%04X) %s\n", i, des->tag, descriptor_tag_to_str(des->tag));
+            printf("      length: %d\n", des->length);
         }
     }
 }

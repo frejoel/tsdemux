@@ -302,8 +302,10 @@ typedef enum TSDEventId {
     TSD_EVENT_TSDT                           = 0x0008,
     /// Unsupported TSDTable
     TSD_EVENT_TABLE                          = 0x0010,
-    // User Registered PID data
-    TSD_EVENT_PID                            = 0x0020,
+    // User Registered PES data
+    TSD_EVENT_PES                            = 0x0020,
+    // User Registered Adaptionn Field Private Data
+    TSD_EVENT_ADAP_FIELD_PRV_DATA            = 0x0040,
 } TSDEventId;
 
 /**
@@ -359,9 +361,9 @@ typedef struct TSDAdaptationField {
     uint16_t orig_program_clock_ref_ext;
     // splicing_point_fag == '1'
     uint8_t splice_countdown;
-    // transport provate data flag == '1'
+    // transport private data flag == '1'
     uint8_t transport_private_data_length;
-    const uint8_t *private_data_byte;
+    const uint8_t *private_data_bytes;
     // adaptation_field_extension_flag == '1'
     TSDAdaptationFieldExtension adap_field_ext;
 } TSDAdaptationField;
@@ -807,6 +809,22 @@ TSDCode tsd_table_data_extract(TSDemuxContext *ctx,
                                TSDTable *table,
                                uint8_t **mem,
                                size_t *size);
+
+/**
+ * Converts raw Decriptor data into a TSDDescriptor array.
+ * @param ctx The context being used to demux.
+ * @param data The raw Descriptor data.
+ * @param data_size The size of the Descriptor data.
+ * @param descriptors Pointer to assign the array of TSDDescriptor to.
+ * @param descriptors_length Where to write the number of Descriptors available in
+ *        descriptors.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_descriptor_extract(TSDemuxContext *ctx,
+                               const uint8_t *data,
+                               size_t data_size,
+                               TSDDescriptor** descriptors,
+                               size_t *descriptors_length);
 
 /**
  * Destroys Table Data.

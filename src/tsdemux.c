@@ -254,7 +254,7 @@ TSDCode tsd_parse_adaptation_field(TSDemuxContext *ctx,
             if(ptr + adap->transport_private_data_length > end) {
                 return TSD_INVALID_DATA_SIZE;
             }
-            adap->private_data_byte = ptr;
+            adap->private_data_bytes = ptr;
             ptr += adap->transport_private_data_length;
         }
 
@@ -682,15 +682,13 @@ TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
     // parse the outter descriptor into a one-dimensional array
     size_t count = 0;
     if(desc_size > 0) {
-        count = descriptor_count(ptr, desc_size);
-        // create and parse the descriptors
-        pmt->descriptors = (TSDDescriptor*) ctx->calloc(count,
-                           sizeof(TSDDescriptor));
-        if(!pmt->descriptors) return TSD_OUT_OF_MEMORY;
-        pmt->descriptors_length = count;
+        TSDCode res = tsd_descriptor_extract(ctx,
+                                             ptr,
+                                             desc_size,
+                                             &(pmt->descriptors),
+                                             &(pmt->descriptors_length));
 
-        // parse all the outter descriptors
-        parse_descriptor(ptr, desc_size, pmt->descriptors, count);
+        if(res != TSD_OK) return res;
         ptr = &ptr[desc_size];
     }
 
@@ -753,19 +751,20 @@ TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
             break;
         }
 
-        size_t inner_count = descriptor_count(ptr, desc_size);
+        size_t inner_count = 0;
+        TSDCode res_des = tsd_descriptor_extract(ctx,
+                          ptr,
+                          desc_size,
+                          &(prog->descriptors),
+                          &inner_count);
+
+        if(res_des != TSD_OK) return res_des;
+
+        prog->descriptors_length = inner_count;
+        ptr = &ptr[desc_size];
         if(inner_count == 0) {
-            prog->descriptors = NULL;
-            prog->descriptors_length = 0;
-            ptr = &ptr[desc_size];
             continue;
         }
-
-        prog->descriptors = (TSDDescriptor*) ctx->calloc(inner_count,
-                            sizeof(TSDDescriptor));
-        prog->descriptors_length = inner_count;
-        parse_descriptor(ptr, desc_size, prog->descriptors, inner_count);
-        ptr = &ptr[desc_size];
     }
 
     if(res != TSD_OK)  {
@@ -1056,6 +1055,36 @@ TSDCode tsd_data_context_reset(TSDemuxContext *ctx, TSDDataContext *dataCtx)
     return TSD_OK;
 }
 
+TSDCode tsd_descriptor_extract(TSDemuxContext *ctx,
+                               const uint8_t *data,
+                               size_t data_size,
+                               TSDDescriptor **descriptors,
+                               size_t *descriptors_length)
+{
+    if(ctx == NULL)     return TSD_INVALID_CONTEXT;
+
+    size_t count = descriptor_count(data, data_size);
+
+    if(count == 0) {
+        *descriptors = NULL;
+        *descriptors_length = 0;
+        return TSD_OK;
+    }
+
+    // create and parse the descriptors
+    TSDDescriptor *descriptors_tmp = (TSDDescriptor*) ctx->calloc(count,
+                                     sizeof(TSDDescriptor));
+
+    if(!descriptors_tmp) return TSD_OUT_OF_MEMORY;
+
+    // parse the individual descriptors
+    parse_descriptor(data, data_size, descriptors_tmp, count);
+    *descriptors_length = count;
+    *descriptors = descriptors_tmp;
+
+    return TSD_OK;
+}
+
 TSDCode tsd_table_data_extract(TSDemuxContext *ctx,
                                TSDPacket *hdr,
                                TSDTable *table,
@@ -1282,6 +1311,11 @@ TSDCode demux_pes(TSDemuxContext *ctx, TSDPacket *hdr, int reg_idx)
     if(ctx == NULL)     return TSD_INVALID_CONTEXT;
     if(hdr == NULL)     return TSD_INVALID_ARGUMENT;
 
+    // make sure we have some data to parse.
+    if(hdr->data_bytes_length == 0 || !hdr->data_bytes) {
+        return TSD_OK;
+    }
+
     const uint8_t *ptr = hdr->data_bytes;
     TSDDataContext *dataCtx = ctx->registered_pids_data[reg_idx];
 
@@ -1312,12 +1346,35 @@ TSDCode demux_pes(TSDemuxContext *ctx, TSDPacket *hdr, int reg_idx)
                 return TSD_PARSE_ERROR;
             } else {
                 // call the user callback with the data.
-                ctx->event_cb(ctx, hdr->pid, TSD_EVENT_PID, (void *)&pes);
+                ctx->event_cb(ctx, hdr->pid, TSD_EVENT_PES, (void *)&pes);
             }
             tsd_data_context_reset(ctx, dataCtx);
         }
     }
     return TSD_OK;
+}
+
+TSDCode demux_adaptation_field_prv_data(TSDemuxContext *ctx, TSDPacket *hdr, int reg_idx)
+{
+    if(ctx == NULL)     return TSD_INVALID_CONTEXT;
+    if(hdr == NULL)     return TSD_INVALID_ARGUMENT;
+
+    // make sure we have an adaptation field
+    if((hdr->adaptation_field_control == TSD_AFC_NO_FIELD_PRESENT) ||
+       !(hdr->adaptation_field.flags & TSD_AF_TRAN_PRIVATE_DATA_FLAG)) {
+        return TSD_OK;
+    }
+    // make sure we have private data
+    if(hdr->adaptation_field.transport_private_data_length == 0 ||
+       !hdr->adaptation_field.private_data_bytes) {
+        return TSD_OK;
+    }
+
+    // call the user callback with the private data
+    ctx->event_cb(ctx,
+                  hdr->pid,
+                  TSD_EVENT_ADAP_FIELD_PRV_DATA,
+                  &hdr->adaptation_field);
 }
 
 size_t tsd_demux(TSDemuxContext *ctx,
@@ -1414,19 +1471,14 @@ size_t tsd_demux(TSDemuxContext *ctx,
                         if(ctx->registered_pids[i].pid != hdr.pid) {
                             continue;
                         }
-                        // is the user registering PES data?
-                        if((ctx->registered_pids[i].data_types & TSD_REG_PES) &&
-                           hdr.data_bytes_length > 0 && hdr.data_bytes) {
+                        // if the user registered PES data demux the PES.
+                        if(ctx->registered_pids[i].data_types & TSD_REG_PES) {
                             // demux the PES data
                             demux_pes(ctx, &hdr, i);
                         }
-                        if((ctx->registered_pids[i].data_types & TSD_REG_ADAPTATION_FIELD) &&
-                           ((hdr.adaptation_field_control & TSD_AFC_ADAP_FIELD_AND_PAYLOAD) ||
-                            (hdr.adaptation_field_control & TSD_AFC_ADAP_FIELD_ONLY))) {
-                            if(hdr.adaptation_field.transport_private_data_length > 0 &&
-                               hdr.adaptation_field.private_data_byte) {
-                                printf("PRIVATE adaption field data\n");
-                            }
+                        // if the user registered the Adaptation field data, demux that.
+                        if(ctx->registered_pids[i].data_types & TSD_REG_ADAPTATION_FIELD) {
+                            demux_adaptation_field_prv_data(ctx, &hdr, i);
                         }
                     }
                 }

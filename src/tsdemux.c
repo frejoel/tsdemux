@@ -1360,12 +1360,12 @@ TSDCode demux_adaptation_field_prv_data(TSDemuxContext *ctx, TSDPacket *hdr, int
     if(hdr == NULL)     return TSD_INVALID_ARGUMENT;
 
     // make sure we have an adaptation field
-    if((hdr->adaptation_field_control == TSD_AFC_NO_FIELD_PRESENT) ||
-       !(hdr->adaptation_field.flags & TSD_AF_TRAN_PRIVATE_DATA_FLAG)) {
+    if(hdr->adaptation_field_control == TSD_AFC_NO_FIELD_PRESENT) {
         return TSD_OK;
     }
     // make sure we have private data
-    if(hdr->adaptation_field.transport_private_data_length == 0 ||
+    if(!(hdr->adaptation_field.flags & TSD_AF_TRAN_PRIVATE_DATA_FLAG) ||
+       hdr->adaptation_field.transport_private_data_length == 0 ||
        !hdr->adaptation_field.private_data_bytes) {
         return TSD_OK;
     }

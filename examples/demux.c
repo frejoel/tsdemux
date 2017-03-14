@@ -95,7 +95,7 @@ void event_cb(TSDemuxContext *ctx, uint16_t pid, TSDEventId event_id, void *data
         printf("\n====================\n");
         printf("Descriptors - Adaptation Fields");
         int i = 0;
-        for(;descriptors_length;++i) {
+        for(; i < descriptors_length; ++i) {
             TSDDescriptor *des = &descriptors[i];
             printf("  %d) tag: (%04X) %s\n", i, des->tag, descriptor_tag_to_str(des->tag));
             printf("      length: %d\n", des->length);

@@ -93,7 +93,7 @@ void event_cb(TSDemuxContext *ctx, uint16_t pid, TSDEventId event_id, void *data
         tsd_descriptor_extract(ctx, adap_field->private_data_bytes, adap_field->transport_private_data_length, &descriptors, &descriptors_length);
 
         printf("\n====================\n");
-        printf("Descriptors - Adaptation Fields");
+        printf("Descriptors - Adaptation Fields\n");
         int i = 0;
         for(; i < descriptors_length; ++i) {
             TSDDescriptor *des = &descriptors[i];
@@ -130,7 +130,7 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
     for(i=0;i<pmt->descriptors_length;++i) {
         TSDDescriptor *des = &pmt->descriptors[i];
         printf("  %d) tag: (%04X) %s\n", i, des->tag, descriptor_tag_to_str(des->tag));
-        printf("      length: %d\n", des->length);
+        printf("     length: %d\n", des->length);
     }
 
     printf("program elements length: %d\n", pmt->program_elements_length);
@@ -149,7 +149,7 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
         for(j=0;j<prog->descriptors_length;++j) {
             TSDDescriptor *des = &prog->descriptors[j];
             printf("    %d) tag: (%04X) %s\n", j, des->tag, descriptor_tag_to_str(des->tag));
-            printf("        length: %d\n", j, des->length);
+            printf("         length: %d\n", des->length);
 
             // if this tag is the SCTE Adaption field private data descriptor,
             // we'll also register for the Adaptation Field Privae Data.

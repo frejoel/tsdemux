@@ -590,7 +590,7 @@ size_t descriptor_count(const uint8_t *ptr, size_t length)
     const uint8_t *end = &ptr[length];
     size_t count = 0;
 
-    while((ptr+2) < end) {
+    while((ptr+2) <= end) {
         ++count;
         uint8_t desc_len = ptr[1];
         if(desc_len > 0 && &ptr[2+desc_len] <= end) {
@@ -695,14 +695,14 @@ TSDCode tsd_parse_pmt(TSDemuxContext *ctx,
     // parse the program elements.
     // As above, determine how many program elements we will have
     const uint8_t *pe_ptr = ptr;
-    const uint8_t *pe_end = &data[size - 4]; // acounting for the CRC32
+    const uint8_t *pe_end = &data[size];
     count = 0; // reset the counter
 
-    while(pe_ptr < pe_end) {
+    while(pe_ptr+5 <= pe_end) {
         ++count;
         pe_ptr += 3;
-        uint16_t len = parse_u16(pe_ptr) & 0x0FFF;
-        pe_ptr = &pe_ptr[len];
+        uint16_t len = parse_u16(pe_ptr) & 0x0FFF; // ES Info length
+        pe_ptr = &pe_ptr[2+len];
     }
 
     // there might not be any Program Elements

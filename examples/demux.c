@@ -76,14 +76,6 @@ void event_cb(TSDemuxContext *ctx, uint16_t pid, TSDEventId event_id, void *data
     }else if(event_id == TSD_EVENT_PES) {
         TSDPESPacket *pes = (TSDPESPacket*) data;
         // This is where we would write the PES data into our buffer.
-        // We'll create "*.data" files.
-        char fname[128];
-        snprintf(fname, 128, "pes_%X_%X.data", pid, pes->stream_id);
-        FILE *fp = fopen(fname, "ab");
-        if(fp) {
-            fwrite(pes->data_bytes, 1, pes->data_bytes_length, fp);
-            fclose(fp);
-        }
     }else if(event_id == TSD_EVENT_ADAP_FIELD_PRV_DATA) {
         // we're only watching for SCTE Adaptions Field Private Data,
         // so we know that we must parse it as a list of descritors.

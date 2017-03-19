@@ -4,11 +4,13 @@
 
 void test_video_stream(void);
 void test_audio_stream(void);
+void test_hierarchy(void);
 
 int main(int argc, char **argv)
 {
     test_video_stream();
     test_audio_stream();
+    test_hierarchy();
     return 0;
 }
 
@@ -73,5 +75,36 @@ void test_audio_stream(void)
     test_assert_equal(desc.flags & TSD_DFAS_ID, 0, "ID");
     test_assert_equal(desc.flags & TSD_DFAS_VAR_RATE_AUDIO_IND, 0, "variable rate audio indicator");
     test_assert_equal(desc.layer, 0x02, "layer");
+    test_end();
+}
+
+void test_hierarchy(void)
+{
+    test_start("hierarchy_descriptor");
+
+    TSDDescriptorHierarchy desc;
+    const uint8_t data[] = {
+        0x02, // tag
+        0x01, // length
+        0xF3, // reserved(4), type(4)
+        0xD9, // resvered(2), layer index(6)
+        0xE8, // reserved(2), embedded layer index(6)
+        0xF7, // reserved(2), channel(6)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_hierarchy(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_hierarchy(data, 2, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_hierarchy(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_hierarchy(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.type, 0x03, "type");
+    test_assert_equal(desc.layer_index, 0x19, "layer index");
+    test_assert_equal(desc.embedded_layer_index, 0x28, "embedded layer index");
+    test_assert_equal(desc.channel, 0x37, "channel");
     test_end();
 }

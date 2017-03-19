@@ -662,6 +662,18 @@ typedef struct TSDDescriptorAudioStream {
 } TSDDescriptorAudioStream;
 
 /**
+ * Hierarchy Descriptor.
+ */
+typedef struct TSDDescriptorHierarchy {
+    uint8_t tag;
+    uint8_t length;
+    uint8_t type;
+    uint8_t layer_index;
+    uint8_t embedded_layer_index;
+    uint8_t channel;
+} TSDDescriptorHierarchy;
+
+/**
  * Get software version.
  * Gets the verison of the softare as a string.
  * The format of the version is MAJOR.MINOR.PATCH where each of the
@@ -970,5 +982,16 @@ TSDCode tsd_parse_descriptor_video_stream(const uint8_t *data,
 TSDCode tsd_parse_descriptor_audio_stream(const uint8_t *data,
         size_t size,
         TSDDescriptorAudioStream *desc);
+
+/**
+ * Parses a Hierarchy Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_hierarchy(const uint8_t *data,
+                                       size_t size,
+                                       TSDDescriptorHierarchy *desc);
 
 #endif // TS_DEMUX_H

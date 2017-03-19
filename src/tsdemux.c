@@ -1596,3 +1596,21 @@ TSDCode tsd_parse_descriptor_audio_stream(const uint8_t *data,
 
     return TSD_OK;
 }
+
+TSDCode tsd_parse_descriptor_hierarchy(const uint8_t *data,
+                                       size_t size,
+                                       TSDDescriptorHierarchy *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 6)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->type = data[2] & 0x0F;
+    desc->layer_index = data[3] & 0x3F;
+    desc->embedded_layer_index = data[4] & 0x3F;
+    desc->channel = data[5] & 0x3F;
+
+    return TSD_OK;
+}

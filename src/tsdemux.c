@@ -1557,3 +1557,42 @@ TSDCode tsd_deregister_pid(TSDemuxContext *ctx, uint16_t pid)
     }
     return TSD_PID_NOT_FOUND;
 }
+
+TSDCode tsd_parse_descriptor_video_stream(const uint8_t *data,
+        size_t size,
+        TSDDescriptorVideoStream *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 3)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    const uint8_t *ptr = data;
+    desc->tag = *ptr;
+    desc->length = ptr[1];
+    desc->frame_rate_code = (ptr[2] >> 3) & 0x0F;
+    desc->flags = ptr[2] & 0x87;
+    if(desc-> flags & TSD_DFVS_MPEG_1_ONLY == 0) {
+        desc->profile_and_level_indication = ptr[3];
+        desc->chroma_format = (ptr[4] >> 6) & 0x03;
+        desc->flags |= (ptr[4] & 0x20);
+    }
+
+    return TSD_OK;
+}
+
+
+TSDCode tsd_parse_descriptor_audio_stream(const uint8_t *data,
+        size_t size,
+        TSDDescriptorAudioStream *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 3)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->flags = data[2] & 0xC8;
+    desc->layer = (data[2] >> 4) & 0x03;
+
+    return TSD_OK;
+}

@@ -3,17 +3,19 @@
 #include <stdio.h>
 
 void test_video_stream(void);
+void test_audio_stream(void);
 
 int main(int argc, char **argv)
 {
     test_video_stream();
+    test_audio_stream();
     return 0;
 }
 
 void test_video_stream(void)
 {
     test_start("video_stream_descriptor");
-    
+
     TSDDescriptorVideoStream desc;
     const uint8_t data[] = {
         0x02, // tag
@@ -41,5 +43,35 @@ void test_video_stream(void)
     test_assert_equal(TSD_DFVS_STILL_PIC, desc.flags & TSD_DFVS_STILL_PIC, "still picture flag");
     test_assert_equal(0x05, desc.frame_rate_code, "frame rate code");
 
+    test_end();
+}
+
+void test_audio_stream(void)
+{
+    test_start("audio_stream_descriptor");
+
+    TSDDescriptorAudioStream desc;
+    const uint8_t data[] = {
+        0x02, // tag
+        0x01, // length
+        0b10100111, // free format flag(1), ID(1), layer(2), variable rate audio indicator(1), reserved(3)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_audio_stream(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_audio_stream(data, 2, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_audio_stream(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_audio_stream(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(0x02, desc.tag, "tag");
+    test_assert_equal(0x01, desc.length, "length");
+    test_assert_equal(desc.flags & TSD_DFAS_FREE_FORMAT, TSD_DFAS_FREE_FORMAT, "free format");
+    test_assert_equal(desc.flags & TSD_DFAS_ID, 0, "ID");
+    test_assert_equal(desc.flags & TSD_DFAS_VAR_RATE_AUDIO_IND, 0, "variable rate audio indicator");
+    test_assert_equal(desc.layer, 0x02, "layer");
     test_end();
 }

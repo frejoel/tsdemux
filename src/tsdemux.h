@@ -674,6 +674,17 @@ typedef struct TSDDescriptorHierarchy {
 } TSDDescriptorHierarchy;
 
 /**
+ * Registration Descriptor.
+ */
+typedef struct TSDDescriptorRegistration {
+    uint8_t tag;
+    uint8_t length;
+    uint32_t format_identifier;
+    const uint8_t *additional_id_info;
+    size_t additional_id_info_length;
+} TSDDescriptorRegistration;
+
+/**
  * Get software version.
  * Gets the verison of the softare as a string.
  * The format of the version is MAJOR.MINOR.PATCH where each of the
@@ -993,5 +1004,15 @@ TSDCode tsd_parse_descriptor_audio_stream(const uint8_t *data,
 TSDCode tsd_parse_descriptor_hierarchy(const uint8_t *data,
                                        size_t size,
                                        TSDDescriptorHierarchy *desc);
+/**
+ * Parses a Registration Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_registration(const uint8_t *data,
+        size_t size,
+        TSDDescriptorRegistration *desc);
 
 #endif // TS_DEMUX_H

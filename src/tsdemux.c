@@ -1614,3 +1614,25 @@ TSDCode tsd_parse_descriptor_hierarchy(const uint8_t *data,
 
     return TSD_OK;
 }
+
+TSDCode tsd_parse_descriptor_registration(const uint8_t *data,
+        size_t size,
+        TSDDescriptorRegistration *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 6)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->format_identifier = parse_u32(&data[2]);
+    if(desc->length > 4) {
+        desc->additional_id_info = &data[6];
+        desc->additional_id_info_length = desc->length - 4;
+    } else {
+        desc->additional_id_info = NULL;
+        desc->additional_id_info_length = 0;
+    }
+
+    return TSD_OK;
+}

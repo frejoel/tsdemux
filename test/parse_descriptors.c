@@ -5,12 +5,14 @@
 void test_video_stream(void);
 void test_audio_stream(void);
 void test_hierarchy(void);
+void test_registration(void);
 
 int main(int argc, char **argv)
 {
     test_video_stream();
     test_audio_stream();
     test_hierarchy();
+    test_registration();
     return 0;
 }
 
@@ -108,5 +110,35 @@ void test_hierarchy(void)
     test_assert_equal(desc.layer_index, 0x19, "layer index");
     test_assert_equal(desc.embedded_layer_index, 0x28, "embedded layer index");
     test_assert_equal(desc.channel, 0x37, "channel");
+    test_end();
+}
+
+void test_registration(void)
+{
+    test_start("registration_descriptor");
+
+    TSDDescriptorRegistration desc;
+    const uint8_t data[] = {
+        0x05, // tag
+        0x07, // length
+        0xAD, 0x54, 0xF5, 0x1C, // format idenitifier (4)
+        0xFC, 0xAF, 0xED // additional identifier info (3)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_registration(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_registration(data, 2, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_registration(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_registration(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x05, "tag");
+    test_assert_equal(desc.length, 0x07, "length");
+    test_assert_equal(desc.format_identifier, 0xAD54F51C, "format identifier");
+    test_assert_equal_ptr((size_t)desc.additional_id_info, (size_t)&data[6], "additional identifier info");
+    test_assert_equal(desc.additional_id_info_length, 3, "additional identifier info length");
     test_end();
 }

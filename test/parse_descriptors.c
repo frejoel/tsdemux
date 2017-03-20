@@ -54,7 +54,7 @@ void test_audio_stream(void)
 
     TSDDescriptorAudioStream desc;
     const uint8_t data[] = {
-        0x02, // tag
+        0x03, // tag
         0x01, // length
         0b10100111, // free format flag(1), ID(1), layer(2), variable rate audio indicator(1), reserved(3)
     };
@@ -69,7 +69,7 @@ void test_audio_stream(void)
 
     res = tsd_parse_descriptor_audio_stream(data, sizeof(data), &desc);
     test_assert_equal(TSD_OK, res, "TSD_OK");
-    test_assert_equal(0x02, desc.tag, "tag");
+    test_assert_equal(0x03, desc.tag, "tag");
     test_assert_equal(0x01, desc.length, "length");
     test_assert_equal(desc.flags & TSD_DFAS_FREE_FORMAT, TSD_DFAS_FREE_FORMAT, "free format");
     test_assert_equal(desc.flags & TSD_DFAS_ID, 0, "ID");
@@ -84,8 +84,8 @@ void test_hierarchy(void)
 
     TSDDescriptorHierarchy desc;
     const uint8_t data[] = {
-        0x02, // tag
-        0x01, // length
+        0x04, // tag
+        0x04, // length
         0xF3, // reserved(4), type(4)
         0xD9, // resvered(2), layer index(6)
         0xE8, // reserved(2), embedded layer index(6)
@@ -102,6 +102,8 @@ void test_hierarchy(void)
 
     res = tsd_parse_descriptor_hierarchy(data, sizeof(data), &desc);
     test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x04, "tag");
+    test_assert_equal(desc.length, 0x04, "length");
     test_assert_equal(desc.type, 0x03, "type");
     test_assert_equal(desc.layer_index, 0x19, "layer index");
     test_assert_equal(desc.embedded_layer_index, 0x28, "embedded layer index");

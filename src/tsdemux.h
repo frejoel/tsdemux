@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Edward Freeman
+ * Copyright (c) 2017 Joel Freeman
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -685,6 +685,61 @@ typedef struct TSDDescriptorRegistration {
 } TSDDescriptorRegistration;
 
 /**
+ * Data Stream Descriptor.
+ */
+typedef struct TSDDescriptorDataStreamAlignment {
+    uint8_t tag;
+    uint8_t length;
+    uint8_t type;
+} TSDDescriptorDataStreamAlignment;
+
+/**
+ * Target Background Grid Descriptor.
+ */
+typedef struct TSDDescriptorTargetBackgroundGrid {
+    uint8_t tag;
+    uint8_t length;
+    uint16_t horizontal_size;
+    uint16_t vertical_size;
+    uint8_t aspect_ratio_info;
+} TSDDescriptorTargetBackgroundGrid;
+
+/**
+ * Video Window Descriptor.
+ */
+typedef struct TSDDescriptorVideoWindow {
+    uint8_t tag;
+    uint8_t length;
+    uint16_t horizontal_offset;
+    uint16_t vertical_offset;
+    uint8_t window_priority;
+} TSDDescriptorVideoWindow;
+
+/**
+ * Conditional Access Descriptor.
+ */
+typedef struct TSDDescriptorConditionalAccess {
+    uint8_t tag;
+    uint8_t length;
+    uint16_t ca_system_id;
+    uint16_t ca_pid;
+    const uint8_t *private_data_bytes;
+    size_t private_data_bytes_length;
+} TSDDescriptorConditionalAccess;
+
+/**
+ * ISO 639 Language Descriptor.
+ */
+typedef struct TSDDescriptorISO639Language {
+    uint8_t tag;
+    uint8_t length;
+    // a single packet could hold up to 45 max,.
+    uint32_t iso_language_code[45];
+    uint8_t audio_type[45];
+    size_t language_length;
+} TSDDescriptorISO639Language;
+
+/**
  * Get software version.
  * Gets the verison of the softare as a string.
  * The format of the version is MAJOR.MINOR.PATCH where each of the
@@ -1014,5 +1069,71 @@ TSDCode tsd_parse_descriptor_hierarchy(const uint8_t *data,
 TSDCode tsd_parse_descriptor_registration(const uint8_t *data,
         size_t size,
         TSDDescriptorRegistration *desc);
+
+/**
+ * Parses a Registration Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_registration(const uint8_t *data,
+        size_t size,
+        TSDDescriptorRegistration *desc);
+
+/**
+ * Parses a Data Stream Alignment Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_data_stream_alignment(const uint8_t *data,
+        size_t size,
+        TSDDescriptorDataStreamAlignment *desc);
+
+/**
+ * Parses a Target Background Grid Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_target_background_grid(const uint8_t *data,
+        size_t size,
+        TSDDescriptorTargetBackgroundGrid *desc);
+
+/**
+ * Parses a Video Window Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_video_window(const uint8_t *data,
+        size_t size,
+        TSDDescriptorVideoWindow *desc);
+
+/**
+ * Parses a Conditional Access Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_conditional_access(const uint8_t *data,
+        size_t size,
+        TSDDescriptorConditionalAccess *desc);
+
+/**
+ * Parses a ISO 639 Language Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_iso639_language(const uint8_t *data,
+        size_t size,
+        TSDDescriptorISO639Language *desc);
 
 #endif // TS_DEMUX_H

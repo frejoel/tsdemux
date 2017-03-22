@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Edward Freeman
+ * Copyright (c) 2017 Joel Freeman
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -1632,6 +1632,104 @@ TSDCode tsd_parse_descriptor_registration(const uint8_t *data,
     } else {
         desc->additional_id_info = NULL;
         desc->additional_id_info_length = 0;
+    }
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_data_stream_alignment(const uint8_t *data,
+        size_t size,
+        TSDDescriptorDataStreamAlignment *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 3)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->type = data[2];
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_target_background_grid(const uint8_t *data,
+        size_t size,
+        TSDDescriptorTargetBackgroundGrid *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 6)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    uint32_t tmp = parse_u32(&data[2]);
+    desc->horizontal_size = (uint16_t)((tmp >> 18) & 0x3FFF);
+    desc->vertical_size = (uint16_t)((tmp >> 4) & 0x3FFF);
+    desc->aspect_ratio_info = data[5] & 0x0F;
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_video_window(const uint8_t *data,
+        size_t size,
+        TSDDescriptorVideoWindow *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 6)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    uint32_t tmp = parse_u32(&data[2]);
+    desc->horizontal_offset = (uint16_t)((tmp >> 18) & 0x3FFF);
+    desc->vertical_offset = (uint16_t)((tmp >> 4) & 0x3FFF);
+    desc->window_priority = data[5] & 0x0F;
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_conditional_access(const uint8_t *data,
+        size_t size,
+        TSDDescriptorConditionalAccess *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 6)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->ca_system_id = parse_u16(&data[2]);
+    desc->ca_pid = parse_u16(&data[4]) & 0x1FFF;
+
+    if(desc->length > 6) {
+        desc->private_data_bytes = &data[6];
+        desc->private_data_bytes_length = desc->length - 4;
+    } else {
+        desc->private_data_bytes = NULL;
+        desc->private_data_bytes_length = 0;
+    }
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_iso639_language(const uint8_t *data,
+        size_t size,
+        TSDDescriptorISO639Language *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 6)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->language_length = (size - 2) / 4;
+
+    const uint8_t *ptr = &data[2];
+    int i=0;
+    for(; i < desc->language_length; ++i) {
+        desc->iso_language_code[i] = (parse_u32(ptr) >> 8) & 0x00FFFFFF;
+        desc->audio_type[i] = ptr[3];
+        ptr += 4;
     }
 
     return TSD_OK;

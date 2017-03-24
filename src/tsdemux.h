@@ -740,6 +740,87 @@ typedef struct TSDDescriptorISO639Language {
 } TSDDescriptorISO639Language;
 
 /**
+ *  System Clock Descriptor.
+ */
+typedef struct TSDDescriptorSystemClock {
+    uint8_t tag;
+    uint8_t length;
+    uint8_t external_clock_reference_indicator;
+    uint8_t clock_accuracy_integer;
+    uint8_t clock_accuracy_exponent;
+} TSDDescriptorSystemClock;
+
+/**
+ *  Multiplex Buffer Utilization Descriptor.
+ */
+typedef struct TSDDescriptorMultiplexBufferUtilization {
+    uint8_t tag;
+    uint8_t length;
+    uint8_t bound_valid_flag;
+    uint16_t ltw_offset_lower_bound;
+    uint16_t ltw_offset_upper_bound;
+} TSDDescriptorMultiplexBufferUtilization;
+
+/**
+ * Copyright Descriptor.
+ */
+typedef struct TSDDescriptorCopyright {
+    uint8_t tag;
+    uint8_t length;
+    uint32_t identifier;
+    const uint8_t *additional_copy_info;
+    size_t additional_copy_info_length;
+} TSDDescriptorCopyright;
+
+/**
+ * Maximum Bit-rate Descriptor.
+ */
+typedef struct TSDDescriptorMaxBitrate {
+    uint8_t tag;
+    uint8_t length;
+    uint32_t max_bitrate;
+} TSDDescriptorMaxBitrate;
+
+/**
+ * Private Data Indicator Descriptor.
+ */
+typedef struct TSDDescriptorPrivDataInd {
+    uint8_t tag;
+    uint8_t length;
+    uint32_t priavte_data_indicator;
+} TSDDescriptorPrivDataInd;
+
+/**
+ * Smoothing Buffer Descriptor.
+ */
+typedef struct TSDDescriptorSmoothingBuffer {
+    uint8_t tag;
+    uint8_t length;
+    uint32_t sb_leak_rate;
+    uint32_t sb_size;
+} TSDDescriptorSmoothingBuffer;
+
+/**
+ * System Target Decoder (STD) Descriptor.
+ */
+typedef struct TSDDescriptorSysTargetDecoder {
+    uint8_t tag;
+    uint8_t length;
+    uint8_t leak_valid_flag;
+} TSDDescriptorSysTargetDecoder;
+
+/**
+ * IBP Descriptor.
+ */
+typedef struct TSDDescriptorIBP {
+    uint8_t tag;
+    uint8_t length;
+    uint8_t closed_gop_flag;
+    uint8_t identical_gop_flag;
+    uint16_t max_gop_length;
+} TSDDescriptorIBP;
+
+/**
  * Get software version.
  * Gets the verison of the softare as a string.
  * The format of the version is MAJOR.MINOR.PATCH where each of the
@@ -1135,5 +1216,93 @@ TSDCode tsd_parse_descriptor_conditional_access(const uint8_t *data,
 TSDCode tsd_parse_descriptor_iso639_language(const uint8_t *data,
         size_t size,
         TSDDescriptorISO639Language *desc);
+
+/**
+ * Parses a System Clock Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_system_clock(const uint8_t *data,
+        size_t size,
+        TSDDescriptorSystemClock *desc);
+
+/**
+ * Parses a Multiplex Buffer Utilization Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_multiplex_buffer_utilization(const uint8_t *data,
+        size_t size,
+        TSDDescriptorMultiplexBufferUtilization *desc);
+
+/**
+ * Parses a Copyright Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_copyright(const uint8_t *data,
+                                       size_t size,
+                                       TSDDescriptorCopyright *desc);
+
+/**
+ * Parses a Maximum Bit-rate Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_max_bitrate(const uint8_t *data,
+        size_t size,
+        TSDDescriptorMaxBitrate *desc);
+
+/**
+ * Parses a Private Data Indicator Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_priv_data_ind(const uint8_t *data,
+        size_t size,
+        TSDDescriptorPrivDataInd *desc);
+
+/**
+ * Parses a Smoothing Buffer Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_smoothing_buffer(const uint8_t *data,
+        size_t size,
+        TSDDescriptorSmoothingBuffer *desc);
+
+/**
+ * Parses a System Target Decoder Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_sys_target_decoder(const uint8_t *data,
+        size_t size,
+        TSDDescriptorSysTargetDecoder *desc);
+
+/**
+ * Parses a IBP Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_ibp(const uint8_t *data,
+                                 size_t size,
+                                 TSDDescriptorIBP *desc);
 
 #endif // TS_DEMUX_H

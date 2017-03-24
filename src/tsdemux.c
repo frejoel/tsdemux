@@ -1734,3 +1734,138 @@ TSDCode tsd_parse_descriptor_iso639_language(const uint8_t *data,
 
     return TSD_OK;
 }
+
+TSDCode tsd_parse_descriptor_system_clock(const uint8_t *data,
+        size_t size,
+        TSDDescriptorSystemClock *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 4)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->external_clock_reference_indicator = (data[2] & 0x80) > 0 ? 1 : 0;
+    desc->clock_accuracy_integer = data[2] & 0x3F;
+    desc->clock_accuracy_exponent = (data[3] & 0xE0) >> 5;
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_multiplex_buffer_utilization(const uint8_t *data,
+        size_t size,
+        TSDDescriptorMultiplexBufferUtilization *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 6)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->bound_valid_flag = (data[2] & 0x80) > 0 ? 1 : 0;
+    desc->ltw_offset_lower_bound = parse_u16(&data[2]) & 0x7F;
+    desc->ltw_offset_upper_bound = parse_u16(&data[4]) & 0x7F;
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_copyright(const uint8_t *data,
+                                       size_t size,
+                                       TSDDescriptorCopyright *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 6)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->identifier = parse_u32(&data[2]);
+
+    if(desc->length > 6 && size > desc->length + 2) {
+        desc->additional_copy_info = &data[6];
+        desc->additional_copy_info_length = desc->length - 6;
+    } else {
+        desc->additional_copy_info = NULL;
+        desc->additional_copy_info_length = 0;
+    }
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_max_bitrate(const uint8_t *data,
+        size_t size,
+        TSDDescriptorMaxBitrate *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 5)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->max_bitrate = parse_u32(&data[1]) & 0x003FFFFF;
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_priv_data_ind(const uint8_t *data,
+        size_t size,
+        TSDDescriptorPrivDataInd *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 6)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->priavte_data_indicator = parse_u32(&data[2]);
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_smoothing_buffer(const uint8_t *data,
+        size_t size,
+        TSDDescriptorSmoothingBuffer *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 8)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->sb_leak_rate = parse_u32(&data[1]) & 0x003FFFFF;
+    desc->sb_size = parse_u32(&data[5]) & 0x003FFFFF;
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_sys_target_decoder(const uint8_t *data,
+        size_t size,
+        TSDDescriptorSysTargetDecoder *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 3)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->leak_valid_flag = data[2] & 0x01;
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_ibp(const uint8_t *data,
+                                 size_t size,
+                                 TSDDescriptorIBP *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 4)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->closed_gop_flag = (data[2] & 0x08) > 0 ? 1 : 0;
+    desc->identical_gop_flag = (data[2] & 0x04) > 0 ? 1 : 0;
+    desc->max_gop_length = parse_u16(&data[2]) & 0x3FFF;
+
+    return TSD_OK;
+}

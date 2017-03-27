@@ -787,7 +787,7 @@ typedef struct TSDDescriptorMaxBitrate {
 typedef struct TSDDescriptorPrivDataInd {
     uint8_t tag;
     uint8_t length;
-    uint32_t priavte_data_indicator;
+    uint32_t private_data_indicator;
 } TSDDescriptorPrivDataInd;
 
 /**

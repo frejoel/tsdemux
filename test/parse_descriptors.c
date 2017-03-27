@@ -11,6 +11,14 @@ void test_target_background_grid(void);
 void test_video_window(void);
 void test_conditional_access(void);
 void test_iso_639_language(void);
+void test_scd(void);
+void test_multiplex_buffer_util(void);
+void test_copyright(void);
+void test_max_bitrate(void);
+void test_private_data_indicator(void);
+void test_smoothing_buffer(void);
+void test_std(void);
+void test_ibp(void);
 
 int main(int argc, char **argv)
 {
@@ -23,6 +31,14 @@ int main(int argc, char **argv)
     test_video_window();
     test_conditional_access();
     test_iso_639_language();
+    test_scd();
+    test_multiplex_buffer_util();
+    test_copyright();
+    test_max_bitrate();
+    test_private_data_indicator();
+    test_smoothing_buffer();
+    test_std();
+    test_ibp();
     return 0;
 }
 
@@ -301,5 +317,242 @@ void test_iso_639_language(void)
     test_assert_equal(desc.audio_type[0], 0x01, "audio type 0");
     test_assert_equal(desc.iso_language_code[1], 0xB72F6A, "iso 639 language 1");
     test_assert_equal(desc.audio_type[1], 0x03, "audio type 1");
+    test_end();
+}
+
+void test_scd(void)
+{
+    test_start("system_clock_descriptor");
+
+    TSDDescriptorSystemClock desc;
+    const uint8_t data[] = {
+        0x0B, // tag
+        0x02, // length
+        0xD5, // external clock ref indicator (1), reserved (1), clock accuracy int (6)
+        0x9F, // clock accuracy exponent (3), reserved (5)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_system_clock(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_system_clock(data, 3, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_system_clock(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_system_clock(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x0B, "tag");
+    test_assert_equal(desc.length, 0x02, "length");
+    test_assert_equal(desc.external_clock_reference_indicator, 1, "clock ref indicator");
+    test_assert_equal(desc.clock_accuracy_integer, 0x15, "clock accuracy integer");
+    test_assert_equal(desc.clock_accuracy_exponent, 0x04, "clock accuracy exponent");
+
+    test_end();
+}
+
+void test_multiplex_buffer_util(void)
+{
+    test_start("multiplex_buffer_util_descriptor");
+
+    TSDDescriptorMultiplexBufferUtilization desc;
+    const uint8_t data[] = {
+        0x0C, // tag
+        0x04, // length
+        0xA7, 0xFE, // bound valid flag (1), ltw offset lower bound (15)
+        0xB6, 0x06, // reserved (1), lts offset upper bound (15)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_multiplex_buffer_utilization(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_multiplex_buffer_utilization(data, 5, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_multiplex_buffer_utilization(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_multiplex_buffer_utilization(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x0C, "tag");
+    test_assert_equal(desc.length, 0x04, "length");
+    test_assert_equal(desc.bound_valid_flag, 1, "bound valid flag");
+    test_assert_equal(desc.ltw_offset_lower_bound, 0x27FE, "ltw offset lower bound");
+    test_assert_equal(desc.ltw_offset_upper_bound, 0x3606, "ltw offset upper bound");
+
+    test_end();
+}
+
+void test_copyright(void)
+{
+    test_start("copyright_descriptor");
+
+    TSDDescriptorCopyright desc;
+    const uint8_t data[] = {
+        0x0D, // tag
+        0x07, // length
+        0xA8, 0xFF, 0xAA, 0x33, // copyright identifier (32)
+        0x99, 0x88, 0x77, // additional copyright info (N)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_copyright(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_copyright(data, 5, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_copyright(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_copyright(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x0D, "tag");
+    test_assert_equal(desc.length, 0x07, "length");
+    test_assert_equal(desc.identifier, 0xA8FFAA33, "length");
+    test_assert_equal_ptr((size_t)desc.additional_copy_info, (size_t)(&data[6]), "additional copy info");
+    test_assert_equal(desc.additional_copy_info_length, 0x03, "additional copy info length");
+
+    test_end();
+}
+
+void test_max_bitrate(void)
+{
+    test_start("max_bitrate_descriptor");
+
+    TSDDescriptorMaxBitrate desc;
+    const uint8_t data[] = {
+        0x0E, // tag
+        0x03, // length
+        0xE5, 0xF4, 0xAC,// reserved (2), maximum bitrate (22)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_max_bitrate(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_max_bitrate(data, 4, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_max_bitrate(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_max_bitrate(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x0E, "tag");
+    test_assert_equal(desc.length, 0x03, "length");
+    test_assert_equal(desc.max_bitrate, 0x25F4AC, "max bitrate");
+
+    test_end();
+}
+
+void test_private_data_indicator(void)
+{
+    test_start("priv_data_indicator_descriptor");
+
+    TSDDescriptorPrivDataInd desc;
+    const uint8_t data[] = {
+        0x0F, // tag
+        0x04, // length
+        0xC3, 0xFE, 0x07, 0x1F// private data indicator (32)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_priv_data_ind(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_priv_data_ind(data, 5, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_priv_data_ind(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_priv_data_ind(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x0F, "tag");
+    test_assert_equal(desc.length, 0x04, "length");
+    test_assert_equal(desc.private_data_indicator, 0xC3FE071F, "private data indicator");
+
+    test_end();
+}
+
+void test_smoothing_buffer(void)
+{
+    test_start("smoothing_buffer_descriptor");
+
+    TSDDescriptorSmoothingBuffer desc;
+    const uint8_t data[] = {
+        0x10, // tag
+        0x06, // length
+        0xC1, 0x65, 0xC7, // reserved (2), sb leak rate (22)
+        0xD3, 0x17, 0x5A, // reserved (2), sb size (22)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_smoothing_buffer(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_smoothing_buffer(data, 2, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_smoothing_buffer(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_smoothing_buffer(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x10, "tag");
+    test_assert_equal(desc.length, 0x06, "length");
+    test_assert_equal(desc.sb_leak_rate, 0x0165C7, "sb leak rate");
+    test_assert_equal(desc.sb_size, 0x13175A, "sb size");
+
+    test_end();
+}
+
+void test_std(void)
+{
+    test_start("std_descriptor");
+
+    TSDDescriptorSysTargetDecoder desc;
+    const uint8_t data[] = {
+        0x11, // tag
+        0x01, // length
+        0xFE, // reserved (7), leak valid flag (1)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_sys_target_decoder(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_sys_target_decoder(data, 2, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_sys_target_decoder(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_sys_target_decoder(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x11, "tag");
+    test_assert_equal(desc.length, 0x01, "length");
+    test_assert_equal(desc.leak_valid_flag, 0, "leak valid flag");
+
+    test_end();
+}
+
+void test_ibp(void)
+{
+    test_start("ibp_descriptor");
+
+    TSDDescriptorIBP desc;
+    const uint8_t data[] = {
+        0x12, // tag
+        0x02, // length
+        0x7B, 0x7F, // closed gop flag (1), identical gop flag (1), max gop length (14)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_ibp(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_ibp(data, 3, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_ibp(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_ibp(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x12, "tag");
+    test_assert_equal(desc.length, 0x02, "length");
+    test_assert_equal(desc.closed_gop_flag, 0, "closed gop flag");
+    test_assert_equal(desc.identical_gop_flag, 1, "identical gop flag");
+    test_assert_equal(desc.max_gop_length, 0x3B7F, "identical gop flag");
+
     test_end();
 }

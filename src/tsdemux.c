@@ -1763,8 +1763,8 @@ TSDCode tsd_parse_descriptor_multiplex_buffer_utilization(const uint8_t *data,
     desc->tag = data[0];
     desc->length = data[1];
     desc->bound_valid_flag = (data[2] & 0x80) > 0 ? 1 : 0;
-    desc->ltw_offset_lower_bound = parse_u16(&data[2]) & 0x7F;
-    desc->ltw_offset_upper_bound = parse_u16(&data[4]) & 0x7F;
+    desc->ltw_offset_lower_bound = parse_u16(&data[2]) & 0x7FFF;
+    desc->ltw_offset_upper_bound = parse_u16(&data[4]) & 0x7FFF;
 
     return TSD_OK;
 }
@@ -1781,9 +1781,9 @@ TSDCode tsd_parse_descriptor_copyright(const uint8_t *data,
     desc->length = data[1];
     desc->identifier = parse_u32(&data[2]);
 
-    if(desc->length > 6 && size > desc->length + 2) {
+    if(desc->length > 6 && size >= desc->length + 2) {
         desc->additional_copy_info = &data[6];
-        desc->additional_copy_info_length = desc->length - 6;
+        desc->additional_copy_info_length = desc->length - 4;
     } else {
         desc->additional_copy_info = NULL;
         desc->additional_copy_info_length = 0;
@@ -1817,7 +1817,7 @@ TSDCode tsd_parse_descriptor_priv_data_ind(const uint8_t *data,
 
     desc->tag = data[0];
     desc->length = data[1];
-    desc->priavte_data_indicator = parse_u32(&data[2]);
+    desc->private_data_indicator = parse_u32(&data[2]);
 
     return TSD_OK;
 }
@@ -1833,7 +1833,7 @@ TSDCode tsd_parse_descriptor_smoothing_buffer(const uint8_t *data,
     desc->tag = data[0];
     desc->length = data[1];
     desc->sb_leak_rate = parse_u32(&data[1]) & 0x003FFFFF;
-    desc->sb_size = parse_u32(&data[5]) & 0x003FFFFF;
+    desc->sb_size = parse_u32(&data[4   ]) & 0x003FFFFF;
 
     return TSD_OK;
 }
@@ -1863,8 +1863,8 @@ TSDCode tsd_parse_descriptor_ibp(const uint8_t *data,
 
     desc->tag = data[0];
     desc->length = data[1];
-    desc->closed_gop_flag = (data[2] & 0x08) > 0 ? 1 : 0;
-    desc->identical_gop_flag = (data[2] & 0x04) > 0 ? 1 : 0;
+    desc->closed_gop_flag = (data[2] & 0x80) > 0 ? 1 : 0;
+    desc->identical_gop_flag = (data[2] & 0x40) > 0 ? 1 : 0;
     desc->max_gop_length = parse_u16(&data[2]) & 0x3FFF;
 
     return TSD_OK;

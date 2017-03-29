@@ -1869,3 +1869,164 @@ TSDCode tsd_parse_descriptor_ibp(const uint8_t *data,
 
     return TSD_OK;
 }
+
+TSDCode tsd_parse_descriptor_mpeg4_video(const uint8_t *data,
+        size_t size,
+        TSDDescriptorMPEG4Video *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 3)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->visual_profile_and_level = data[2];
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_mpeg4_audio(const uint8_t *data,
+        size_t size,
+        TSDDescriptorMPEG4Audio *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 3)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->audio_profile_and_level = data[2];
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_iod(const uint8_t *data,
+                                 size_t size,
+                                 TSDDescriptorIOD *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 6)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->scope_of_iod_label = data[2];
+    desc->iod_label = data[3];
+    desc->initial_object_descriptor = &data[4];
+    desc->initial_object_descriptor_length = size - 5;
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_sl(const uint8_t *data,
+                                size_t size,
+                                TSDDescriptorSL *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 4)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->es_id = parse_u16(&data[2]);
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_fmc(const uint8_t *data,
+                                 size_t size,
+                                 TSDDescriptorFMC *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 2)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+
+    int i = 0;
+    int c = 0;
+    for(; i < desc->length; i+=3) {
+        desc->es_id[c] = parse_u16(&data[2+i]);
+        desc->flex_mux_channel[c] = data[4+i];
+        ++c;
+    }
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_external_es_id(const uint8_t *data,
+        size_t size,
+        TSDDescriptorExternalESID *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 4)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+    desc->es_id = parse_u16(&data[2]);
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_mux_code(const uint8_t *data,
+                                      size_t size,
+                                      TSDDescriptorMuxCode *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 2)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+
+    if(desc->length > 0) {
+        desc->mux_code_table_entry = &data[2];
+        desc->mux_code_table_entry_length = size - 2;
+    } else {
+        desc->mux_code_table_entry = NULL;
+        desc->mux_code_table_entry_length = 0;
+    }
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_fmx_buffer_size(const uint8_t *data,
+        size_t size,
+        TSDDescriptorFMXBufferSize *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 4)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+
+    desc->default_flex_mux_buffer_descriptor = &data[2];
+    uint8_t len = data[3];
+    desc->default_flex_mux_buffer_descriptor_length = 1 + len;
+
+    if(len > 0) {
+        desc->flex_mux_buffer_descriptors = &data[2 + len];
+    }
+
+    return TSD_OK;
+}
+
+TSDCode tsd_parse_descriptor_multiplex_buffer(const uint8_t *data,
+        size_t size,
+        TSDDescriptorMultiplexBuffer *desc)
+{
+    if(data == NULL)        return TSD_INVALID_DATA;
+    if(size < 8)            return TSD_INVALID_DATA_SIZE;
+    if(desc == NULL)        return TSD_INVALID_ARGUMENT;
+
+    desc->tag = data[0];
+    desc->length = data[1];
+
+    desc->mb_buffer_size = parse_u32(&data[1]) & 0x00FFFFFF;
+    desc->tb_leak_rate = parse_u32(&data[5]) & 0x00FFFFFF;
+
+    return TSD_OK;
+}

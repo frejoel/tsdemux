@@ -821,6 +821,97 @@ typedef struct TSDDescriptorIBP {
 } TSDDescriptorIBP;
 
 /**
+ * MPEG-4 Video Descriptor.
+ */
+typedef struct TSDDescriptorMPEG4Video {
+    uint8_t tag;
+    uint8_t length;
+    uint8_t visual_profile_and_level;
+} TSDDescriptorMPEG4Video;
+
+/**
+ * MPEG-4 Audio Descriptor.
+ */
+typedef struct TSDDescriptorMPEG4Audio {
+    uint8_t tag;
+    uint8_t length;
+    uint8_t audio_profile_and_level;
+} TSDDescriptorMPEG4Audio;
+
+/**
+ * IOD Descriptor.
+ */
+typedef struct TSDDescriptorIOD {
+    uint8_t tag;
+    uint8_t length;
+    uint8_t scope_of_iod_label;
+    uint8_t iod_label;
+    const uint8_t *initial_object_descriptor;
+    size_t initial_object_descriptor_length;
+} TSDDescriptorIOD;
+
+/**
+ * SL Descriptor.
+ */
+typedef struct TSDDescriptorSL {
+    uint8_t tag;
+    uint8_t length;
+    uint16_t es_id;
+} TSDDescriptorSL;
+
+/**
+ * FMC Descriptor.
+ */
+typedef struct TSDDescriptorFMC {
+    uint8_t tag;
+    uint8_t length;
+    uint16_t es_id[32];
+    uint8_t flex_mux_channel[32];
+    size_t fmc_length;
+} TSDDescriptorFMC;
+
+/**
+ * External ES ID Descriptor.
+ */
+typedef struct TSDDescriptorExternalESID {
+    uint8_t tag;
+    uint8_t length;
+    uint16_t es_id;
+} TSDDescriptorExternalESID;
+
+/**
+ * MuxCode Descriptor.
+ */
+typedef struct TSDDescriptorMuxCode {
+    uint8_t tag;
+    uint8_t length;
+    const uint8_t *mux_code_table_entry;
+    size_t mux_code_table_entry_length;
+} TSDDescriptorMuxCode;
+
+/**
+ * FMX Buffer Size Descriptor.
+ */
+typedef struct TSDDescriptorFMXBufferSize {
+    uint8_t tag;
+    uint8_t length;
+    const uint8_t *default_flex_mux_buffer_descriptor;
+    size_t default_flex_mux_buffer_descriptor_length;
+    const uint8_t *flex_mux_buffer_descriptors;
+    size_t flex_mux_buffer_length_descriptor_length;
+} TSDDescriptorFMXBufferSize;
+
+/**
+ * Multiplex Buffer Descriptor.
+ */
+typedef struct TSDDescriptorMultiplexBuffer {
+    uint8_t tag;
+    uint8_t length;
+    uint32_t mb_buffer_size;
+    uint32_t tb_leak_rate;
+} TSDDescriptorMultiplexBuffer;
+
+/**
  * Get software version.
  * Gets the verison of the softare as a string.
  * The format of the version is MAJOR.MINOR.PATCH where each of the
@@ -1304,5 +1395,104 @@ TSDCode tsd_parse_descriptor_sys_target_decoder(const uint8_t *data,
 TSDCode tsd_parse_descriptor_ibp(const uint8_t *data,
                                  size_t size,
                                  TSDDescriptorIBP *desc);
+
+/**
+ * Parses a MPEG-4 Video Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_mpeg4_video(const uint8_t *data,
+        size_t size,
+        TSDDescriptorMPEG4Video *desc);
+
+/**
+ * Parses a MPEG-4 Audio Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_mpeg4_audio(const uint8_t *data,
+        size_t size,
+        TSDDescriptorMPEG4Audio *desc);
+
+/**
+ * Parses a IOD Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_iod(const uint8_t *data,
+                                 size_t size,
+                                 TSDDescriptorIOD *desc);
+
+/**
+ * Parses a SL Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_sl(const uint8_t *data,
+                                size_t size,
+                                TSDDescriptorSL *desc);
+
+/**
+ * Parses a FMC Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_fmc(const uint8_t *data,
+                                 size_t size,
+                                 TSDDescriptorFMC *desc);
+
+/**
+ * Parses a External ES ID Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_external_es_id(const uint8_t *data,
+        size_t size,
+        TSDDescriptorExternalESID *desc);
+
+/**
+ * Parses a MuxCode Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_mux_code(const uint8_t *data,
+                                      size_t size,
+                                      TSDDescriptorMuxCode *desc);
+
+/**
+ * Parses a FMX Buffer Size Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_fmx_buffer_size(const uint8_t *data,
+        size_t size,
+        TSDDescriptorFMXBufferSize *desc);
+
+/**
+ * Parses a Multiplex Buffer Descriptor.
+ * @param data The data to parse.
+ * @param size The size of the data in bytes.
+ * @param desc The descriptor to write the parsed information into.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_parse_descriptor_multiplex_buffer(const uint8_t *data,
+        size_t size,
+        TSDDescriptorMultiplexBuffer *desc);
 
 #endif // TS_DEMUX_H

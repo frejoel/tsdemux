@@ -1,10 +1,12 @@
 CC = gcc
 ODIR = bin
 CCDIR = coverage
+INSTALL_DIR = /usr/local
 CCOBJDIR = $(CCDIR)/obj
 CFLAGS = -Ibin -Lbin
 LIBS = -ltsdemux
 
+.SECONDEXPANSION:
 OBJ_TESTS := $(patsubst %.c, %.o, $(wildcard test/*.c))
 OBJ_EXAMPLES := $(patsubst %.c, %.o, $(wildcard examples/*.c))
 
@@ -43,6 +45,12 @@ static:
 %.o: %.c
 	astyle --style=linux -n src/*.h src/*.c
 	$(CC) -o $@ $< $(CFLAGS) $(LIBS)
+
+install: static
+	mkdir -p $(INSTALL_DIR)/include
+	mkdir -p $(INSTALL_DIR)/lib
+	cp $(ODIR)/tsdemux.h $(INSTALL_DIR)/include/
+	cp $(ODIR)/libtsdemux.a $(INSTALL_DIR)/lib/
 
 tests: static $(OBJ_TESTS)
 

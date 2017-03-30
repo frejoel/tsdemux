@@ -16,16 +16,16 @@ manipulate a single Demux Context across multiple threads.
 It is thread-safe if content is demultiplexed using a separate Demux Context per
 thread.
 
-The demux example, `examples/demux.c`, creates a single Demux Context on a
+The tsinfo example, `examples/tsinfo.c`, creates a single Demux Context on a
 single (main) thread.
 
 ## Documentation
 The `src/tsdemux.h` header file contains the public API documentation.
-This header is generated and distributed with the Library files.
+This header is distributed with the Library files.
 
 The best place to get started would be the examples which are in the `examples`
 directory.
-The examples are heavily documented tutorials with instructions on how to work
+The examples are documented tutorials with instructions on how to work
 with the library.
 
 # Installation

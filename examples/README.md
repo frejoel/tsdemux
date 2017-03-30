@@ -1,6 +1,6 @@
 # Examples
-## demux.c
-Demuxs a TS file read from `stdin` and prints out stream information.
+## tsinfo.c
+Prints information to stdout about a TS file read from `stdin`.
 ```
- ./demux.o < myfile.ts
+ ./tsinfo.o < myfile.ts
  ```

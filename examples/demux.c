@@ -89,7 +89,7 @@ void event_cb(TSDemuxContext *ctx, uint16_t pid, TSDEventId event_id, void *data
         int i = 0;
         for(; i < descriptors_length; ++i) {
             TSDDescriptor *des = &descriptors[i];
-            printf("  %d) tag: (%04X) %s\n", i, des->tag, descriptor_tag_to_str(des->tag));
+            printf("  %d) tag: (0x%04X) %s\n", i, des->tag, descriptor_tag_to_str(des->tag));
             printf("      length: %d\n", des->length);
         }
     }
@@ -114,14 +114,14 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
     printf("\n====================\n");
     printf("PMT\n");
     TSDPMTData *pmt = (TSDPMTData*)data;
-    printf("PCR PID: %04X\n", pmt->pcr_pid);
+    printf("PCR PID: 0x%04X\n", pmt->pcr_pid);
     printf("program info length: %d\n", pmt->program_info_length);
     printf("descriptors length: %d\n", pmt->descriptors_length);
     size_t i;
 
     for(i=0;i<pmt->descriptors_length;++i) {
         TSDDescriptor *des = &pmt->descriptors[i];
-        printf("  %d) tag: (%04X) %s\n", i, des->tag, descriptor_tag_to_str(des->tag));
+        printf("  %d) tag: (0x%04X) %s\n", i, des->tag, descriptor_tag_to_str(des->tag));
         printf("     length: %d\n", des->length);
     }
 
@@ -129,8 +129,8 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
     for(i=0;i<pmt->program_elements_length; ++i) {
         TSDProgramElement *prog = &pmt->program_elements[i];
         printf("  -----\nProgram #%d\n", i);
-        printf("  stream type: (%04X)  %s\n", prog->stream_type, stream_type_to_str(prog->stream_type));
-        printf("  elementary pid: %04X\n", prog->elementary_pid);
+        printf("  stream type: (0x%04X)  %s\n", prog->stream_type, stream_type_to_str(prog->stream_type));
+        printf("  elementary pid: 0x%04X\n", prog->elementary_pid);
         printf("  es info length: %d\n", prog->es_info_length);
         printf("  descriptors length: %d\n", prog->descriptors_length);
         size_t j;
@@ -140,7 +140,7 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
 
         for(j=0;j<prog->descriptors_length;++j) {
             TSDDescriptor *des = &prog->descriptors[j];
-            printf("    %d) tag: (%04X) %s\n", j, des->tag, descriptor_tag_to_str(des->tag));
+            printf("    %d) tag: (0x%04X) %s\n", j, des->tag, descriptor_tag_to_str(des->tag));
             printf("         length: %d\n", des->length);
 
             // if this tag is the SCTE Adaption field private data descriptor,

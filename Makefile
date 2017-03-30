@@ -52,6 +52,10 @@ install: static
 	cp $(ODIR)/tsdemux.h $(INSTALL_DIR)/include/
 	cp $(ODIR)/libtsdemux.a $(INSTALL_DIR)/lib/
 
+remove:
+	rm -f $(INSTALL_DIR)/include/tsdemux.h
+	rm -f $(INSTALL_DIR)/lib/libtsdemux.a
+
 tests: static $(OBJ_TESTS)
 
 examples: static $(OBJ_EXAMPLES)

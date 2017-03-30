@@ -885,8 +885,8 @@ typedef struct TSDDescriptorExternalESID {
 typedef struct TSDDescriptorMuxCode {
     uint8_t tag;
     uint8_t length;
-    const uint8_t *mux_code_table_entry;
-    size_t mux_code_table_entry_length;
+    const uint8_t *mux_code_table_entries;
+    size_t mux_code_table_entries_length;
 } TSDDescriptorMuxCode;
 
 /**
@@ -898,7 +898,7 @@ typedef struct TSDDescriptorFMXBufferSize {
     const uint8_t *default_flex_mux_buffer_descriptor;
     size_t default_flex_mux_buffer_descriptor_length;
     const uint8_t *flex_mux_buffer_descriptors;
-    size_t flex_mux_buffer_length_descriptor_length;
+    size_t flex_mux_buffer_descriptors_length;
 } TSDDescriptorFMXBufferSize;
 
 /**

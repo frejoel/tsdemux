@@ -19,6 +19,15 @@ void test_private_data_indicator(void);
 void test_smoothing_buffer(void);
 void test_std(void);
 void test_ibp(void);
+void test_mpeg4_video(void);
+void test_mpeg4_audio(void);
+void test_iod(void);
+void test_sl(void);
+void test_fmc(void);
+void test_external_es_id(void);
+void test_mux_code(void);
+void test_fmx_buffer_size(void);
+void test_multiplex_buffer(void);
 
 int main(int argc, char **argv)
 {
@@ -39,6 +48,15 @@ int main(int argc, char **argv)
     test_smoothing_buffer();
     test_std();
     test_ibp();
+    test_mpeg4_video();
+    test_mpeg4_audio();
+    test_iod();
+    test_sl();
+    test_fmc();
+    test_external_es_id();
+    test_mux_code();
+    test_fmx_buffer_size();
+    test_multiplex_buffer();
     return 0;
 }
 
@@ -553,6 +571,281 @@ void test_ibp(void)
     test_assert_equal(desc.closed_gop_flag, 0, "closed gop flag");
     test_assert_equal(desc.identical_gop_flag, 1, "identical gop flag");
     test_assert_equal(desc.max_gop_length, 0x3B7F, "identical gop flag");
+
+    test_end();
+}
+
+void test_mpeg4_video(void)
+{
+    test_start("mpeg4_video_descriptor");
+
+    TSDDescriptorMPEG4Video desc;
+    const uint8_t data[] = {
+        0x1B, // tag
+        0x01, // length
+        0x10, // mpeg4 visual profile profile and level
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_mpeg4_video(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_mpeg4_video(data, 2, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_mpeg4_video(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_mpeg4_video(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x1B, "tag");
+    test_assert_equal(desc.length, 0x01, "length");
+    test_assert_equal(desc.visual_profile_and_level, 0x10, "length");
+
+    test_end();
+}
+
+void test_mpeg4_audio(void)
+{
+    test_start("mpeg4_audio_descriptor");
+
+    TSDDescriptorMPEG4Audio desc;
+    const uint8_t data[] = {
+        0x1C, // tag
+        0x01, // length
+        0x11, // audio profile and level
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_mpeg4_audio(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_mpeg4_audio(data, 2, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_mpeg4_audio(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_mpeg4_audio(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x1C, "tag");
+    test_assert_equal(desc.length, 0x01, "length");
+    test_assert_equal(desc.audio_profile_and_level, 0x11, "audio profile and level");
+
+    test_end();
+}
+
+void test_iod(void)
+{
+    test_start("iod_descriptor");
+
+    TSDDescriptorIOD desc;
+    const uint8_t data[] = {
+        0x1D, // tag
+        0x07, // length
+        0x10, // scope of iod label (8)
+        0x29, // iod label (8)
+        0xFF, 0x03, // initial object descriptor, tag(8), length(8) etc.
+        0x01, 0x02, 0x03
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_iod(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_iod(data, 3, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_iod(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_iod(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x1D, "tag");
+    test_assert_equal(desc.length, 0x07, "length");
+    test_assert_equal(desc.scope_of_iod_label, 0x10, "scope of iod label");
+    test_assert_equal(desc.iod_label, 0x29, "iod label");
+    test_assert_equal_ptr((size_t)desc.initial_object_descriptor, (size_t)&data[4], "initial object descriptor");
+    test_assert_equal(desc.initial_object_descriptor_length, 5, "initial object descriptor length");
+
+    test_end();
+}
+
+void test_sl(void)
+{
+    test_start("sl_descriptor");
+
+    TSDDescriptorSL desc;
+    const uint8_t data[] = {
+        0x1E, // tag
+        0x02, // length
+        0xF4, 0xDE, // es id
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_sl(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_sl(data, 3, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_sl(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_sl(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x1E, "tag");
+    test_assert_equal(desc.length, 0x02, "length");
+    test_assert_equal(desc.es_id, 0xF4DE, "es id");
+
+    test_end();
+}
+
+void test_fmc(void)
+{
+    test_start("fmc_descriptor");
+
+    TSDDescriptorFMC desc;
+    const uint8_t data[] = {
+        0x1F, // tag
+        0x09, // length
+        0x01, 0x02, 0x03, // es id(16), flex mux channel (8)
+        0xFF, 0xFE, 0xFD, // es id(16), flex mux channel (8)
+        0x66, 0x55, 0x77, // es id(16), flex mux channel (8)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_fmc(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_fmc(data, 1, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_fmc(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_fmc(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x1F, "tag");
+    test_assert_equal(desc.length, 0x09, "length");
+    test_assert_equal(desc.fmc_length, 3, "fmc length");
+    test_assert_equal(desc.es_id[0], 0x0102, "es id 0");
+    test_assert_equal(desc.flex_mux_channel[0], 0x03, "flex mux channel 0");
+    test_assert_equal(desc.es_id[1], 0xFFFE, "es id 1");
+    test_assert_equal(desc.flex_mux_channel[1], 0xFD, "flex mux channel 1");
+    test_assert_equal(desc.es_id[2], 0x6655, "es id 2");
+    test_assert_equal(desc.flex_mux_channel[2], 0x77, "flex mux channel 2");
+
+    test_end();
+}
+
+void test_external_es_id(void)
+{
+    test_start("external_es_id_descriptor");
+
+    TSDDescriptorExternalESID desc;
+    const uint8_t data[] = {
+        0x20, // tag
+        0x02, // length
+        0xF3, 0x7D, // external es id
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_external_es_id(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_external_es_id(data, 2, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_external_es_id(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_external_es_id(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x20, "tag");
+    test_assert_equal(desc.length, 0x02, "length");
+    test_assert_equal(desc.es_id, 0xF37D, "es id");
+
+    test_end();
+}
+
+void test_mux_code(void)
+{
+    test_start("mux_code_descriptor");
+
+    TSDDescriptorMuxCode desc;
+    const uint8_t data[] = {
+        0x21, // tag
+        0x0A, // length
+        0x05, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mux code table entry, length(8)...
+        0x03, 0xFF, 0xFF, 0xFF, // mux code table entry, length(8)...
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_mux_code(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_mux_code(data, 1, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_mux_code(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_mux_code(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x21, "tag");
+    test_assert_equal(desc.length, 0x0A, "length");
+    test_assert_equal_ptr((size_t)desc.mux_code_table_entries, (size_t)&data[2], "mux code table entries");
+    test_assert_equal(desc.mux_code_table_entries_length, 10, "mux code table entries length");
+
+    test_end();
+}
+
+void test_fmx_buffer_size(void)
+{
+    test_start("fmx_buffer_size_descriptor");
+
+    TSDDescriptorFMXBufferSize desc;
+    const uint8_t data[] = {
+        0x22, // tag
+        0x0F, // length
+        0x01, 0x04, 0xFF, 0xFF, 0xFF, 0xFF,// default mux buffer descriptor, index(8), length(8), ...
+        0x02, 0x02, 0xFF, 0xFF, // Flex Mux Buffer Descriptor, index(8), length(8), ...
+        0x03, 0x03, 0xFF, 0xFF, 0xFF, // Flex Mux Buffer Descriptor, index(8), length(8), ...
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_fmx_buffer_size(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_fmx_buffer_size(data, 3, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_fmx_buffer_size(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_fmx_buffer_size(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x22, "tag");
+    test_assert_equal(desc.length, 0x0F, "length");
+    test_assert_equal_ptr((size_t)desc.default_flex_mux_buffer_descriptor, (size_t)&data[2], "default flex mux buffer descriptor");
+    test_assert_equal(desc.default_flex_mux_buffer_descriptor_length, 0x06, "default flex mux buffer descriptor length");
+    test_assert_equal_ptr((size_t)desc.flex_mux_buffer_descriptors, (size_t)&data[8], "flex mux buffer descriptors");
+    test_assert_equal(desc.flex_mux_buffer_descriptors_length, 0x09, "flex mux buffer descriptors length");
+
+    test_end();
+}
+
+void test_multiplex_buffer(void)
+{
+    test_start("multiplex_buffer_descriptor");
+
+    TSDDescriptorMultiplexBuffer desc;
+    const uint8_t data[] = {
+        0x23, // tag
+        0x06, // length
+        0xFF, 0xEE, 0xDD, // mb buffer size (24)
+        0x11, 0x22, 0x33, // tb leak rate (24)
+    };
+
+    TSDCode res;
+    res = tsd_parse_descriptor_multiplex_buffer(NULL, sizeof(data), &desc);
+    test_assert_equal(TSD_INVALID_DATA, res, "invalid data");
+    res = tsd_parse_descriptor_multiplex_buffer(data, 7, &desc);
+    test_assert_equal(TSD_INVALID_DATA_SIZE, res, "invalid data size");
+    res = tsd_parse_descriptor_multiplex_buffer(data, sizeof(data), NULL);
+    test_assert_equal(TSD_INVALID_ARGUMENT, res, "invalid argument");
+
+    res = tsd_parse_descriptor_multiplex_buffer(data, sizeof(data), &desc);
+    test_assert_equal(TSD_OK, res, "TSD_OK");
+    test_assert_equal(desc.tag, 0x23, "tag");
+    test_assert_equal(desc.length, 0x06, "length");
+    test_assert_equal(desc.mb_buffer_size, 0xFFEEDD, "mb buffer size");
+    test_assert_equal(desc.tb_leak_rate, 0x112233, "tb leak rate");
 
     test_end();
 }

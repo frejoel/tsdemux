@@ -1913,7 +1913,7 @@ TSDCode tsd_parse_descriptor_iod(const uint8_t *data,
     desc->scope_of_iod_label = data[2];
     desc->iod_label = data[3];
     desc->initial_object_descriptor = &data[4];
-    desc->initial_object_descriptor_length = size - 5;
+    desc->initial_object_descriptor_length = size - 4;
 
     return TSD_OK;
 }
@@ -1951,6 +1951,7 @@ TSDCode tsd_parse_descriptor_fmc(const uint8_t *data,
         desc->flex_mux_channel[c] = data[4+i];
         ++c;
     }
+    desc->fmc_length = c;
 
     return TSD_OK;
 }
@@ -1982,11 +1983,11 @@ TSDCode tsd_parse_descriptor_mux_code(const uint8_t *data,
     desc->length = data[1];
 
     if(desc->length > 0) {
-        desc->mux_code_table_entry = &data[2];
-        desc->mux_code_table_entry_length = size - 2;
+        desc->mux_code_table_entries = &data[2];
+        desc->mux_code_table_entries_length = size - 2;
     } else {
-        desc->mux_code_table_entry = NULL;
-        desc->mux_code_table_entry_length = 0;
+        desc->mux_code_table_entries = NULL;
+        desc->mux_code_table_entries_length = 0;
     }
 
     return TSD_OK;
@@ -2004,11 +2005,13 @@ TSDCode tsd_parse_descriptor_fmx_buffer_size(const uint8_t *data,
     desc->length = data[1];
 
     desc->default_flex_mux_buffer_descriptor = &data[2];
+    // length is the 2nd byte of the descriptor, see ISO 14496-1
     uint8_t len = data[3];
-    desc->default_flex_mux_buffer_descriptor_length = 1 + len;
+    desc->default_flex_mux_buffer_descriptor_length = 2 + len;
 
     if(len > 0) {
-        desc->flex_mux_buffer_descriptors = &data[2 + len];
+        desc->flex_mux_buffer_descriptors = &data[4 + len];
+        desc->flex_mux_buffer_descriptors_length = size - (len + 4);
     }
 
     return TSD_OK;
@@ -2026,7 +2029,7 @@ TSDCode tsd_parse_descriptor_multiplex_buffer(const uint8_t *data,
     desc->length = data[1];
 
     desc->mb_buffer_size = parse_u32(&data[1]) & 0x00FFFFFF;
-    desc->tb_leak_rate = parse_u32(&data[5]) & 0x00FFFFFF;
+    desc->tb_leak_rate = parse_u32(&data[4]) & 0x00FFFFFF;
 
     return TSD_OK;
 }

@@ -619,10 +619,12 @@ size_t parse_descriptor(const uint8_t* data,
         desc->length = ptr[1];
         // make sure we have enough data to correctly parse the descriptors
         if(desc->length > 0 && &ptr[desc->length + 2] <= end) {
-            desc->data = &ptr[2];
+            desc->data = ptr;
+            desc->data_length = desc->length + 2;
             ptr = &ptr[desc->length + 2];
         } else {
             desc->data = NULL;
+            desc->data_length = 0;
             desc->length = 0;
             ptr = end;
         }

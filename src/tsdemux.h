@@ -535,6 +535,7 @@ typedef struct TSDDescriptor {
     uint8_t tag;
     uint8_t length;
     const uint8_t *data;
+    size_t data_length;
 } TSDDescriptor;
 
 /**
@@ -1116,7 +1117,7 @@ TSDCode tsd_table_data_extract(TSDemuxContext *ctx,
 TSDCode tsd_descriptor_extract(TSDemuxContext *ctx,
                                const uint8_t *data,
                                size_t data_size,
-                               TSDDescriptor** descriptors,
+                               TSDDescriptor **descriptors,
                                size_t *descriptors_length);
 
 /**

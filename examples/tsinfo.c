@@ -17,6 +17,8 @@ void print_pmt(TSDemuxContext *ctx, void *data);
 const char* stream_type_to_str(TSDPESStreamId stream_id);
 // returns a human readable string of a descritor tag name
 const char* descriptor_tag_to_str(uint8_t tag);
+// prints some info on some interesting descriptors
+void print_descriptor_info(TSDDescriptor *desc);
 
 int main(int argc, char **charv) {
     // create a demuxing context.
@@ -91,6 +93,7 @@ void event_cb(TSDemuxContext *ctx, uint16_t pid, TSDEventId event_id, void *data
             TSDDescriptor *des = &descriptors[i];
             printf("  %d) tag: (0x%04X) %s\n", i, des->tag, descriptor_tag_to_str(des->tag));
             printf("      length: %d\n", des->length);
+            print_descriptor_info(des);
         }
     }
 }
@@ -123,6 +126,7 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
         TSDDescriptor *des = &pmt->descriptors[i];
         printf("  %d) tag: (0x%04X) %s\n", i, des->tag, descriptor_tag_to_str(des->tag));
         printf("     length: %d\n", des->length);
+        print_descriptor_info(des);
     }
 
     printf("program elements length: %d\n", pmt->program_elements_length);
@@ -142,6 +146,7 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
             TSDDescriptor *des = &prog->descriptors[j];
             printf("    %d) tag: (0x%04X) %s\n", j, des->tag, descriptor_tag_to_str(des->tag));
             printf("         length: %d\n", des->length);
+            print_descriptor_info(des);
 
             // if this tag is the SCTE Adaption field private data descriptor,
             // we'll also register for the Adaptation Field Privae Data.
@@ -380,4 +385,37 @@ const char* descriptor_tag_to_str(uint8_t tag) {
     case 0xEC: return "MDTV hybrid stereoscopic service descriptor";
     }
     return "Unknown";
+}
+
+void print_descriptor_info(TSDDescriptor *desc)
+{
+    // print out some interesting descriptor data
+    switch(desc->tag) {
+        case 0x05: // Registration descriptor
+        {
+            TSDDescriptorRegistration res;
+            if(TSD_OK == tsd_parse_descriptor_registration(desc->data, desc->data_length, &res)) {
+                printf("\n  format identififer: 0x%08X\n\n", res.format_identifier);
+            }
+        } break;
+        case 0x0A: // ISO 639 Language descriptor
+        {
+            TSDDescriptorISO639Language res;
+            if(TSD_OK == tsd_parse_descriptor_iso639_language(desc->data, desc->data_length, &res)) {
+                printf("\n");
+                int i=0;
+                for(; i < res.language_length; ++i) {
+                    printf(" ISO Language Code: 0x%08X, audio type: 0x%02x\n", res.iso_language_code[i], res.audio_type[i]);
+                }
+                printf("\n");
+            }
+        } break;
+        case 0x0E: // Maximum bitrate descriptor
+        {
+            TSDDescriptorMaxBitrate res;
+            if(TSD_OK == tsd_parse_descriptor_max_bitrate(desc->data, desc->data_length, &res)) {
+                printf("\n Maximum Bitrate: %d x 50 bytes/second\n\n", res.max_bitrate);
+            }
+        } break;
+    }
 }

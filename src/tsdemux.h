@@ -309,7 +309,7 @@ typedef enum TSDPMTStreamType {
     TSD_PMT_STREAM_TYPE_C                            = 0x0C,
     TSD_PMT_STREAM_TYPE_D                            = 0x0D,
     TSD_PMT_STREAM_TYPE_H222_0_AUX                   = 0x0E,
-    TSD_PMT_STREAM_TYPE_AUDIO_ADTS                   = 0x0F,
+    TSD_PMT_STREAM_TYPE_AUDIO_AAC                    = 0x0F,
     TSD_PMT_STREAM_TYPE_VISUAL                       = 0x10,
     TSD_PMT_STREAM_TYPE_AUDIO_LATM                   = 0x11,
     TSD_PMT_STREAM_TYPE_SL_PES                       = 0x12,

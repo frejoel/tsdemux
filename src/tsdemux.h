@@ -292,6 +292,33 @@ typedef enum TSDTableFlags {
 } TSDTableFlags;
 
 /**
+ * PMT Program Element Stream Type
+ */
+typedef enum TSDPMTStreamType {
+    TSD_PMT_STREAM_TYPE_VIDEO                     = 0x01,
+    TSD_PMT_STREAM_TYPE_VIDEO_H262                = 0x02,
+    TSD_PMT_STREAM_TYPE_AUDIO_11172               = 0x03,
+    TSD_PMT_STREAM_TYPE_AUDIO_13818_3             = 0x04,
+    TSD_PMT_STREAM_TYPE_PRV_SECTIONS              = 0x05,
+    TSD_PMT_STREAM_TYPE_PES_PRV                   = 0x06,
+    TSD_PMT_STREAM_TYPE_MHEG                      = 0x07,
+    TSD_PMT_STREAM_TYPE_H222_0_DSM_CC             = 0x08,
+    TSD_PMT_STREAM_TYPE_H222_1                    = 0x09,
+    TSD_PMT_STREAM_TYPE_A                         = 0x0A,
+    TSD_PMT_STREAM_TYPE_B                         = 0x0B,
+    TSD_PMT_STREAM_TYPE_C                         = 0x0C,
+    TSD_PMT_STREAM_TYPE_D                         = 0x0D,
+    TSD_PMT_STREAM_TYPE_H222_0_AUX                = 0x0E,
+    TSD_PMT_STREAM_TYPE_AUDIO_ADTS                = 0x0F,
+    TSD_PMT_STREAM_TYPE_VISUAL                    = 0x10,
+    TSD_PMT_STREAM_TYPE_AUDIO_LATM                = 0x11,
+    TSD_PMT_STREAM_TYPE_SL_PES                    = 0x12,
+    TSD_PMT_STREAM_TYPE_SL_SECTIONS               = 0x13,
+    TSD_PMT_STREAM_TYPE_SYNC_DOWNLOAD             = 0x14,
+    TSD_PMT_STREAM_TYPE_USER_PRIV                 = 0x80,
+} TSDPMTStreamType;
+
+/**
  * Event Id.
  * The Id of all events that may occur during demux.
  */

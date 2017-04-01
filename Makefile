@@ -47,13 +47,14 @@ static:
 	$(CC) -o $@ $< $(CFLAGS) $(LIBS)
 
 install: static
-	mkdir -p $(INSTALL_DIR)/include
+	mkdir -p $(INSTALL_DIR)/include/libtsdemux
 	mkdir -p $(INSTALL_DIR)/lib
-	cp $(ODIR)/tsdemux.h $(INSTALL_DIR)/include/
+	cp $(ODIR)/tsdemux.h $(INSTALL_DIR)/include/libtsdemux/
 	cp $(ODIR)/libtsdemux.a $(INSTALL_DIR)/lib/
 
 remove:
-	rm -f $(INSTALL_DIR)/include/tsdemux.h
+	rm -f $(INSTALL_DIR)/include/libtsdemux/libtsdemux.h
+	rm -r -f $(INSTALL_DIR)/include/libtsdemux
 	rm -f $(INSTALL_DIR)/lib/libtsdemux.a
 
 tests: static $(OBJ_TESTS)

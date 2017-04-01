@@ -542,7 +542,7 @@ typedef struct TSDPESPacket {
 } TSDPESPacket;
 
 // re-typing the PESPacket for user callback consistency.
-typedef TSDPESPacket TSPESData;
+typedef TSDPESPacket TSDPESData;
 
 /**
  * TSDTable Section.

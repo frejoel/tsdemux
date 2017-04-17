@@ -1308,6 +1308,31 @@ TSDCode demux_descriptors(TSDemuxContext *ctx, TSDPacket *hdr)
     return TSD_OK;
 }
 
+TSDCode demux_pes_flush(TSDemuxContext *ctx, int reg_idx)
+{
+    if(ctx == NULL)     return TSD_INVALID_CONTEXT;
+    if(reg_idx < 0)     return TSD_INVALID_ARGUMENT;
+
+    TSDDataContext *dataCtx = ctx->registered_pids_data[reg_idx];
+
+    // if the buffer already has same data in it, we will parse it.
+    size_t data_len = dataCtx->write - dataCtx->buffer;
+    if(data_len > 0) {
+        TSDPESPacket pes;
+        TSDCode res = tsd_parse_pes(ctx, dataCtx->buffer, data_len, &pes);
+        if(res != TSD_OK) {
+            return res;
+        } else {
+            // call the user callback with the data.
+            uint16_t pid = ctx->registered_pids[reg_idx].pid;
+            ctx->event_cb(ctx, pid, TSD_EVENT_PES, (void *)&pes);
+        }
+        // clear the DataContext.
+        tsd_data_context_reset(ctx, dataCtx);
+    }
+    return TSD_OK;
+}
+
 TSDCode demux_pes(TSDemuxContext *ctx, TSDPacket *hdr, int reg_idx)
 {
     if(ctx == NULL)     return TSD_INVALID_CONTEXT;
@@ -1320,11 +1345,25 @@ TSDCode demux_pes(TSDemuxContext *ctx, TSDPacket *hdr, int reg_idx)
 
     const uint8_t *ptr = hdr->data_bytes;
     TSDDataContext *dataCtx = ctx->registered_pids_data[reg_idx];
+    TSDCode initial_parse_res = TSD_OK;
 
     size_t ptr_len = hdr->data_bytes_length;
-    // PES data should have the payload unit start indicator.
-    if(!(hdr->flags & TSD_PF_PAYLOAD_UNIT_START_IND)) {
-        return TSD_OK;
+    // is this the start of a new PES packet?
+    if((hdr->flags & TSD_PF_PAYLOAD_UNIT_START_IND)) {
+        // if the buffer already has same data in it, we will parse it.
+        size_t data_len = dataCtx->write - dataCtx->buffer;
+        if(data_len > 0) {
+            TSDPESPacket pes;
+            initial_parse_res = tsd_parse_pes(ctx, dataCtx->buffer, data_len, &pes);
+            if(initial_parse_res == TSD_OK) {
+                // call the user callback with the data.
+                ctx->event_cb(ctx, hdr->pid, TSD_EVENT_PES, (void *)&pes);
+            } else {
+                initial_parse_res = TSD_PARSE_ERROR;
+            }
+            // clear the DataContext for the new packet data.
+            tsd_data_context_reset(ctx, dataCtx);
+        }
     }
 
     // write the data into the DataContext.
@@ -1337,14 +1376,13 @@ TSDCode demux_pes(TSDemuxContext *ctx, TSDPacket *hdr, int reg_idx)
     size_t data_len = dataCtx->write - dataCtx->buffer;
     if(data_len > 5) {
         // get the PES length
-        uint16_t pes_len = parse_u16(&dataCtx->buffer[5]) + 5;
-        // if the amount of data in the DataContext matches the PES length,
+        uint16_t pes_len = parse_u16(&dataCtx->buffer[4]);
+        // if the amount of data in the DataContext matches the PES length
         // we have enough data to parse the PES packet.
-        if(data_len >= pes_len) {
+        if(pes_len > 0 && data_len >= pes_len) {
             TSDPESPacket pes;
             res = tsd_parse_pes(ctx, dataCtx->buffer, data_len, &pes);
             if(res != TSD_OK) {
-                // bad PES data.
                 return TSD_PARSE_ERROR;
             } else {
                 // call the user callback with the data.
@@ -1353,7 +1391,7 @@ TSDCode demux_pes(TSDemuxContext *ctx, TSDPacket *hdr, int reg_idx)
             tsd_data_context_reset(ctx, dataCtx);
         }
     }
-    return TSD_OK;
+    return initial_parse_res;
 }
 
 TSDCode demux_adaptation_field_prv_data(TSDemuxContext *ctx, TSDPacket *hdr, int reg_idx)
@@ -1467,21 +1505,19 @@ size_t tsd_demux(TSDemuxContext *ctx,
 
             // if this isn't a PMT PID, check to usee if the user has registerd it
             if(parsed == 0) {
-                if(hdr.flags & TSD_PF_PAYLOAD_UNIT_START_IND) {
-                    size_t i;
-                    for(i=0; i < ctx->registered_pids_length; ++i) {
-                        if(ctx->registered_pids[i].pid != hdr.pid) {
-                            continue;
-                        }
-                        // if the user registered PES data demux the PES.
-                        if(ctx->registered_pids[i].data_types & TSD_REG_PES) {
-                            // demux the PES data
-                            demux_pes(ctx, &hdr, i);
-                        }
-                        // if the user registered the Adaptation field data, demux that.
-                        if(ctx->registered_pids[i].data_types & TSD_REG_ADAPTATION_FIELD) {
-                            demux_adaptation_field_prv_data(ctx, &hdr, i);
-                        }
+                size_t i;
+                for(i=0; i < ctx->registered_pids_length; ++i) {
+                    if(ctx->registered_pids[i].pid != hdr.pid) {
+                        continue;
+                    }
+                    // if the user registered PES data demux the PES.
+                    if(ctx->registered_pids[i].data_types & TSD_REG_PES) {
+                        // demux the PES data
+                        demux_pes(ctx, &hdr, i);
+                    }
+                    // if the user registered the Adaptation field data, demux that.
+                    if(ctx->registered_pids[i].data_types & TSD_REG_ADAPTATION_FIELD) {
+                        demux_adaptation_field_prv_data(ctx, &hdr, i);
                     }
                 }
             }
@@ -1501,6 +1537,17 @@ size_t tsd_demux(TSDemuxContext *ctx,
     }
 
     return size - remaining;
+}
+
+TSDCode tsd_demux_end(TSDemuxContext *ctx)
+{
+    if(ctx == NULL)     return TSD_INVALID_CONTEXT;
+
+    int i=0;
+    for(; i<ctx->registered_pids_length; ++i) {
+        demux_pes_flush(ctx, i);
+    }
+    return TSD_OK;
 }
 
 TSDCode tsd_register_pid(TSDemuxContext *ctx, uint16_t pid, int reg_data_type)

@@ -1005,8 +1005,22 @@ TSDCode tsd_set_event_callback(TSDemuxContext *ctx, tsd_on_event callback);
 
 /**
  * Demux a Transport Stream.
+ * @param ctx The contenxt being used to demux,
+ * @param data The data to demux.
+ * @param size The size of data.
+ * @param code Used to store the return code of this process.
+ * @return The total number of bytes parsed. The process result is stored in
+ * code which on success will be TSD_OK;
  */
 size_t tsd_demux(TSDemuxContext *ctx, void *data, size_t size, TSDCode *code);
+
+/**
+ * Ends the Demuxxing process.
+ * Flushing any pending PES packets in the buffers.
+ * @param ctx The context being used to demux.
+ * @return TSD_OK on success.
+ */
+TSDCode tsd_demux_end(TSDemuxContext *ctx);
 
 /**
  * Parse Packet Header.

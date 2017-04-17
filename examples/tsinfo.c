@@ -63,6 +63,9 @@ int main(int argc, char **charv) {
         }
     } while(count > 0);
 
+    // finally end the demux process which will flush any remaining PES data.
+    tsd_demux_end(&ctx);
+
     // destroy context
     tsd_context_destroy(&ctx);
 
@@ -78,6 +81,8 @@ void event_cb(TSDemuxContext *ctx, uint16_t pid, TSDEventId event_id, void *data
     }else if(event_id == TSD_EVENT_PES) {
         TSDPESPacket *pes = (TSDPESPacket*) data;
         // This is where we would write the PES data into our buffer.
+        printf("\n====================\n");
+        printf("PID %d PES Packet, Size: %d\n", pid, pes->data_bytes_length);
     }else if(event_id == TSD_EVENT_ADAP_FIELD_PRV_DATA) {
         // we're only watching for SCTE Adaptions Field Private Data,
         // so we know that we must parse it as a list of descritors.

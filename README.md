@@ -88,15 +88,15 @@ generate a `gmon.out` file. From there you can export the profiling report using
 `gprof`.
 
 ### Example
-This will build the examples with Profiling enabled, run the demux example,
+This will build the examples with Profiling enabled, run the tsinfoexample,
 output the profiling report to `profile_report.txt` and display the text of
 `profile_report.txt` to the screen.
 
 ```
  make clean
  make examples PROFILING=1
- ./examples/demux.o
- gprof examples/demux.o > profile_report.txt
+ ./examples/tsinfo.o myfile.ts
+ gprof examples/tsinfo.o > profile_report.txt
  less profile_report.txt
 ```
 
@@ -136,7 +136,7 @@ The executables are built directly in the `examples` directory alongside the
 example source code.
 The examples are expecting to be run from the root project directory.
 ```
- ./examples/tsinfo.o < myfile.ts
+ ./examples/tsinfo.o myfile.ts
 ```
 
 # Contributing
@@ -173,7 +173,7 @@ The framework is a very basic header file, `test/test.h`.
 It's generally a good idea to check for memory leaks by running the examples
 through Valgrind.
 ```
- valgrind --leak-check=yes --track-origins=yes --log-file=valgrind_report.txt examples/tsinfo.o < myfile.ts`
+ valgrind --leak-check=yes --track-origins=yes --log-file=valgrind_report.txt examples/tsinfo.o myfile.ts`
 ```
 Not all warnings in Valgrind are valid errors, compare the results with the
 `master` branch.

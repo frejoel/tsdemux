@@ -155,7 +155,7 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
     for(i=0;i<pmt->program_elements_length; ++i) {
         TSDProgramElement *prog = &pmt->program_elements[i];
         printf("  -----\nProgram #%d\n", i);
-        printf("  stream type: (0x%04X)  %s\n", prog->stream_type, stream_type_to_str(TSDPESStreamId(prog->stream_type)));
+        printf("  stream type: (0x%04X)  %s\n", prog->stream_type, stream_type_to_str((TSDPESStreamId)(prog->stream_type)));
         printf("  elementary pid: 0x%04X\n", prog->elementary_pid);
         printf("  es info length: %d\n", prog->es_info_length);
         printf("  descriptors length: %d\n", prog->descriptors_length);

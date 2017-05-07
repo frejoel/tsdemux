@@ -150,8 +150,8 @@ TSDCode tsd_parse_packet_header(TSDemuxContext *ctx,
     hdr->pid = parse_u16(ptr) & 0x1FFF;
     ptr+=2;
 
-    hdr->transport_scrambling_control = ((*ptr) >> 6) & 0x03;
-    hdr->adaptation_field_control = ((*ptr) >> 4) & 0x03;
+    hdr->transport_scrambling_control = (TSDScramblingControl)(((*ptr) >> 6) & 0x03);
+    hdr->adaptation_field_control = (TSDAdaptionFieldControl)(((*ptr) >> 4) & 0x03);
     hdr->continuity_counter = (*ptr) & 0x0F;
     ptr++;
 
@@ -816,7 +816,7 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
     } else {
         uint8_t value = *ptr;
         ptr++;
-        pes->scrambling_control = (value & 0x30) >> 6;
+        pes->scrambling_control = (TSDPESScramblingControl)((value & 0x30) >> 6);
         pes->flags = ((value & 0x0F) << 8) | *ptr;
         ptr++;
         pes->header_data_length = *ptr;
@@ -849,7 +849,7 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
             ptr = &ptr[3];
         }
         if(pes->flags & TSD_PPF_DSM_TRICK_MODE_FLAG) {
-            pes->trick_mode.control = ((*ptr) >> 5) & 0x07;
+            pes->trick_mode.control = (TSDTrickModeControl)(((*ptr) >> 5) & 0x07);
             if(pes->trick_mode.control == TSD_TMC_FAST_FORWARD ||
                pes->trick_mode.control == TSD_TMC_FAST_REVERSE) {
                 pes->trick_mode.field_id = ((*ptr) >> 3) & 0x03;
@@ -1164,7 +1164,7 @@ TSDCode tsd_table_data_extract(TSDemuxContext *ctx,
     }
 
     *size = written;
-    *mem = block;
+    *mem = (uint8_t *)block;
 
     // reset the block of data
     tsd_data_context_reset(ctx, data);
@@ -1415,6 +1415,8 @@ TSDCode demux_adaptation_field_prv_data(TSDemuxContext *ctx, TSDPacket *hdr, int
                   hdr->pid,
                   TSD_EVENT_ADAP_FIELD_PRV_DATA,
                   &hdr->adaptation_field);
+
+    return TSD_OK;
 }
 
 size_t tsd_demux(TSDemuxContext *ctx,
@@ -1503,7 +1505,7 @@ size_t tsd_demux(TSDemuxContext *ctx,
                 }
             }
 
-            // if this isn't a PMT PID, check to usee if the user has registerd it
+            // if this isn't a PMT PID, check to see if the user has registerd it
             if(parsed == 0) {
                 size_t i;
                 for(i=0; i < ctx->registered_pids_length; ++i) {
@@ -1620,7 +1622,7 @@ TSDCode tsd_parse_descriptor_video_stream(const uint8_t *data,
     desc->length = ptr[1];
     desc->frame_rate_code = (ptr[2] >> 3) & 0x0F;
     desc->flags = ptr[2] & 0x87;
-    if(desc-> flags & TSD_DFVS_MPEG_1_ONLY == 0) {
+    if((desc-> flags & TSD_DFVS_MPEG_1_ONLY) == 0) {
         desc->profile_and_level_indication = ptr[3];
         desc->chroma_format = (ptr[4] >> 6) & 0x03;
         desc->flags |= (ptr[4] & 0x20);

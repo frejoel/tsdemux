@@ -21,6 +21,20 @@ const char* descriptor_tag_to_str(uint8_t tag);
 void print_descriptor_info(TSDDescriptor *desc);
 
 int main(int argc, char **charv) {
+    FILE *file_input = NULL;
+    if (argc < 2)
+    {
+        printf("not enough params\n");
+        return -10;
+    }
+
+    file_input = fopen(charv[1], "rb");
+    if (!file_input)
+    {
+        printf("failed to open file %s\n", charv[1]);
+        return -20;
+    }
+
     // create a demuxing context.
     TSDemuxContext ctx;
     // set default values onto the context.
@@ -44,7 +58,7 @@ int main(int argc, char **charv) {
         // at the end of the do loop, we write back any remainder bytes into
         // the buffer, this is why we write into the buffer at the location
         // &buffer[count - parsed].
-        count = fread(&buffer[count - parsed], 1, 1880 - (count - parsed), stdin);
+        count = fread(&buffer[count - parsed], 1, 1880 - (count - parsed), file_input);
 
         if(count > 0) {
             // with res, we could report any errors found during demuxing
@@ -68,6 +82,9 @@ int main(int argc, char **charv) {
 
     // destroy context
     tsd_context_destroy(&ctx);
+
+    if (file_input)
+        fclose(file_input);
 
     return 0;
 }
@@ -138,7 +155,7 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
     for(i=0;i<pmt->program_elements_length; ++i) {
         TSDProgramElement *prog = &pmt->program_elements[i];
         printf("  -----\nProgram #%d\n", i);
-        printf("  stream type: (0x%04X)  %s\n", prog->stream_type, stream_type_to_str(prog->stream_type));
+        printf("  stream type: (0x%04X)  %s\n", prog->stream_type, stream_type_to_str(TSDPESStreamId(prog->stream_type)));
         printf("  elementary pid: 0x%04X\n", prog->elementary_pid);
         printf("  es info length: %d\n", prog->es_info_length);
         printf("  descriptors length: %d\n", prog->descriptors_length);
@@ -166,20 +183,20 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
 }
 
 const char* stream_type_to_str(TSDPESStreamId stream_id) {
-    if(stream_id >= 0x1C && stream_id <= 0x7F) {
-        stream_id = 0x1C;
+    if(stream_id >= 0x1C && stream_id <= 0x7F && stream_id != 0x24 && stream_id != 0x42) {
+        stream_id = (TSDPESStreamId)0x1C;
     }else if(stream_id >= 0x8A && stream_id <= 0x8F) {
-        stream_id = 0x8A;
+        stream_id = (TSDPESStreamId)0x8A;
     }else if(stream_id >= 0x93 && stream_id <= 0x94) {
-        stream_id = 0x93;
+        stream_id = (TSDPESStreamId)0x93;
     }else if(stream_id >= 0x96 && stream_id <= 0x9F) {
-        stream_id = 0x96;
+        stream_id = (TSDPESStreamId)0x96;
     }else if(stream_id >= 0xA1 && stream_id <= 0xBF ){
-        stream_id = 0xA1;
+        stream_id = (TSDPESStreamId)0xA1;
     }else if(stream_id >= 0xC4 && stream_id <= 0xE9 ){
-        stream_id = 0xC4;
+        stream_id = (TSDPESStreamId)0xC4;
     }else if(stream_id >= 0xEB && stream_id <= 0xFF ){
-        stream_id = 0xEB;
+        stream_id = (TSDPESStreamId)0xEB;
     }
 
     switch(stream_id) {
@@ -212,6 +229,8 @@ const char* stream_type_to_str(TSDPESStreamId stream_id) {
     case 0x1A : return "IPMP stream (defined in ISO/IEC 13818-11, MPEG-2 IPMP)";
     case 0X1B : return "AVC video stream as defined in ITU-T Rec. H.264 | ISO/IEC 14496-10 Video";
     case 0x1C : return "ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved";
+    case 0x24 : return "ITU-T Rec. H.265 and ISO/IEC 23008-2 (Ultra HD video) in a packetized stream";
+    case 0x42 : return "Chinese Video Standard in a packetized stream";
     case 0x80 : return "DigiCipher® II video | Identical to ITU-T Rec. H.262 | ISO/IEC 13818-2 Video";
     case 0x81 : return "ATSC A/53 audio [2] | AC-3 audio";
     case 0x82 : return "SCTE Standard Subtitle";

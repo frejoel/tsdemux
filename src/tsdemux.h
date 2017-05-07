@@ -150,6 +150,8 @@ typedef enum TSDPIDValue {
     TSD_PID_TSDT                                  = 0x0002,
     /** MPEG-2 Systems Reserved **/
     TSD_PID_RESERVED_MPEG2                        = 0x000F,
+    /** SDT Service Information (of DVB) **/
+    TSD_PID_SDT                                   = 0x0011,
     /** DVB Service Information **/
     TSD_PID_RESERVED_DVB_SI                       = 0x001F,
     /** ARIB Service Information **/

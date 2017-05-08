@@ -6,7 +6,7 @@
 void test_register(void);
 void test_deregister(void);
 
-int main(char **argc, char **argc)
+int main(int argc, char **argv)
 {
     test_register();
     test_deregister();

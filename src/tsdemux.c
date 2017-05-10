@@ -431,7 +431,7 @@ TSDCode tsd_parse_table(TSDemuxContext *ctx,
         ptr += section_len + 3;
         section_count++;
 
-        if((ptr+1) < dataCtx->write && *(ptr+1) == 0xFF) {
+        if((ptr+1) < dataCtx->write && (*(ptr+1) == 0xFF) || (0x00 == *(ptr+1))) {
             // we found the end of the table,
             // clear the active buffer seeing as we've finished with the table
             ctx->buffers.active = NULL;

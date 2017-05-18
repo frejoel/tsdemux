@@ -821,6 +821,7 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
         ptr++;
         pes->header_data_length = *ptr;
         ptr++;
+        const uint8_t *header_end = &ptr[pes->header_data_length];
         if(pes->flags & TSD_PPF_PTS_FLAG) {
             uint64_t pts1 = (uint64_t) (((*ptr) >> 1) & 0x07);
             uint64_t pts2 = (uint64_t) ((parse_u16(ptr+1) >> 1) & 0x7FFF);
@@ -952,7 +953,7 @@ TSDCode tsd_parse_pes(TSDemuxContext *ctx,
             }
         }
         // get past any stuffing
-        while(*ptr == 0xFF) {
+        while(ptr < header_end && *ptr == 0xFF) {
             ptr++;
         }
         pes->data_bytes = ptr;

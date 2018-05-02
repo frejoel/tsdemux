@@ -1484,8 +1484,8 @@ size_t tsd_demux(TSDemuxContext *ctx,
             if(res != TSD_OK && res != TSD_INCOMPLETE_TABLE) {
                 return res;
             }
-        } else if (hdr.pid > TSD_PID_RESERVED_NON_ATSC &&
-                   hdr.pid <= TSD_PID_GENERAL_PURPOSE) {
+        } else if (hdr.pid >= TSD_PID_DATA_TABLES_START &&
+                   hdr.pid <= TSD_PID_RESERVED_FUTURE) {
             // check to see if this PID is a PMT
             int parsed = 0;
             if(ctx->pat.valid) {

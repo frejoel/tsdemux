@@ -154,6 +154,9 @@ typedef enum TSDPIDValue {
     TSD_PID_SDT                                   = 0x0011,
     /** DVB Service Information **/
     TSD_PID_RESERVED_DVB_SI                       = 0x001F,
+    /** PIDs from this PID can be assigned to Program Map Tables, Elementary Streams
+      * or other data tables **/
+    TSD_PID_DATA_TABLES_START                     = 0x0020,
     /** ARIB Service Information **/
     TSD_PID_RESERVED_ARIB_SI                      = 0x002F,
     /** Set aside for non ATSC Use **/

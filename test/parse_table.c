@@ -258,6 +258,7 @@ void test_parse_multi_packet_table(void)
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
         // +46 bytes
+        // The section_length says there is more data to this table
     };
 
     uint8_t tableData2[] = {

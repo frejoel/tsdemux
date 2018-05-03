@@ -62,7 +62,8 @@ tests: static $(OBJ_TESTS)
 examples: static $(OBJ_EXAMPLES)
 
 check: tests $(OBJ_TESTS)
-	find test/*.o -type f -exec "{}" \;
+	./test-runner.sh
+
 ifeq ($(COVERAGE), 1)
 	mkdir -p $(CCDIR)
 	rm -f *.gcno

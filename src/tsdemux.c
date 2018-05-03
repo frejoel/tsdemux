@@ -346,7 +346,7 @@ TSDCode get_data_context(TSDemuxContext *ctx,
     }
     ctx->buffers.pool = dataCtx;
     ctx->buffers.length = len;
-    // reassign the active buffer
+    // reassign the active buffer if it was previously set
     if(active_idx >= 0) {
         ctx->buffers.active = &ctx->buffers.pool[active_idx];
     }
@@ -432,10 +432,6 @@ TSDCode tsd_parse_table(TSDemuxContext *ctx,
         section_count++;
 
         if((ptr+1) < dataCtx->write && (*(ptr+1) == 0xFF) || (0x00 == *(ptr+1))) {
-            // we found the end of the table,
-            // clear the active buffer seeing as we've finished with the table
-            ctx->buffers.active = NULL;
-
             // create and parse the sections.
             table->length = section_count;
             table->sections = (TSDTableSection*) ctx->calloc(section_count,
@@ -451,6 +447,13 @@ TSDCode tsd_parse_table(TSDemuxContext *ctx,
 
             if(res != TSD_OK) {
                 tsd_table_data_destroy(ctx, table);
+                if(res == TSD_INVALID_DATA_SIZE) {
+                    res = TSD_INCOMPLETE_TABLE;
+                }
+            } else {
+                // we found the end of the table,
+                // clear the active buffer seeing as we've finished with the table
+                ctx->buffers.active = NULL;
             }
             return res;
         }

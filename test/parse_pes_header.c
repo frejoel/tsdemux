@@ -57,7 +57,7 @@ void test_parse_pes_data(void)
         0x00, 0x3C, // packet length
         0b10000010, // '10', scrmabling(2), priority(1), data alignment(1), copyright(1), original or copy(1)
         0b11101011, // pts dts(2), escr(1), es rate(1), dsm trick play(1), add copy info(1), crc (1), ext (1)
-        0x34, // pes header data length
+        0x49, // pes header data length
         0b00100001, 0x00, 0x01, 0x00, 0x01, // '0010', pts 4,3,1,15,1,15,1
         0b00011001, 0x00, 0x01, 0x00, 0x01, // '0001', dts 4,3,1,15,1,15,1
         0b11000100, 0x00, 0b00000100, 0x00, 0b00000100, 0x01, // ESCR, reserved(2), 3,1,15,1,15,1 ext 9,1
@@ -114,7 +114,7 @@ void test_parse_pes_data(void)
     test_assert_equal(pes.flags & TSD_PPF_ADDITIONAL_COPY_INFO_FLAG, 0x00, "additional copy info flag");
     test_assert_equal(pes.flags & TSD_PPF_PES_CRC_FLAG, TSD_PPF_PES_CRC_FLAG, "CRC flag");
     test_assert_equal(pes.flags & TSD_PPF_PES_EXTENSION_FLAG, TSD_PPF_PES_EXTENSION_FLAG, "PES extension flag");
-    test_assert_equal(pes.header_data_length, 0x34, "header data length");
+    test_assert_equal(pes.header_data_length, 0x49, "header data length");
     test_assert_equal(pes.pts, 0x00000000, "pts");
     test_assert_equal(pes.dts, 0x00000000, "dts");
     test_assert_equal(pes.escr, 0x00000000, "escr");

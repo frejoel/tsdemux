@@ -3,7 +3,7 @@ ODIR = bin
 CCDIR = coverage
 INSTALL_DIR = /usr/local
 CCOBJDIR = $(CCDIR)/obj
-CFLAGS = -Ibin -Lbin -Wswitch
+CFLAGS = -Ibin -Lbin
 LIBS = -ltsdemux
 
 .SECONDEXPANSION:

@@ -431,7 +431,7 @@ TSDCode tsd_parse_table(TSDemuxContext *ctx,
         ptr += section_len + 3;
         section_count++;
 
-        if((ptr+1) < dataCtx->write && (*(ptr+1) == 0xFF) || (0x00 == *(ptr+1))) {
+        if((ptr <= dataCtx->write) && ((*(ptr+1) == 0xFF) || (0x00 == *(ptr+1)))) {
             // create and parse the sections.
             table->length = section_count;
             table->sections = (TSDTableSection*) ctx->calloc(section_count,

@@ -43,7 +43,6 @@ static:
 	cp src/tsdemux.h $(ODIR)/tsdemux.h
 
 %.o: %.c
-	astyle --style=linux -n src/*.h src/*.c
 	$(CC) -o $@ $< $(CFLAGS) $(LIBS)
 
 install: static

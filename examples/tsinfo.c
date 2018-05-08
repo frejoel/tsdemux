@@ -7,6 +7,11 @@
 
 #include <tsdemux.h>
 
+#define PRINT_PIDS_LEN  (16)
+
+// prints out the data assoicated with certain PIDs (up to 16)
+uint16_t print_pids[PRINT_PIDS_LEN];
+
 // demux callback (see tsd_set_event_callback for details).
 void event_cb(TSDemuxContext *ctx, uint16_t pid, TSDEventId event_id, void *data);
 // prints information about a PAT.
@@ -34,6 +39,9 @@ int main(int argc, char **charv) {
         printf("failed to open file %s\n", charv[1]);
         return -20;
     }
+
+    // create the pids we plan on printing
+    memset(print_pids, 0, sizeof(print_pids));
 
     // create a demuxing context.
     TSDemuxContext ctx;
@@ -100,6 +108,25 @@ void event_cb(TSDemuxContext *ctx, uint16_t pid, TSDEventId event_id, void *data
         // This is where we would write the PES data into our buffer.
         printf("\n====================\n");
         printf("PID %d PES Packet, Size: %d, stream_id=%u, pts=%llu, dts=%llu\n", pid, pes->data_bytes_length, pes->stream_id, pes->pts, pes->dts);
+        // print out the PES Packet data if it's in our print list
+        int i;
+        for(i=0; i<PRINT_PIDS_LEN; ++i) {
+            if(print_pids[i] == pid) {
+                printf("    PES data: ");
+                int j = 0;
+                while(j < pes->data_bytes_length) {
+                    char n = pes->data_bytes[j];
+                    if(n >= 32) {
+                        printf("%c", n);
+                    }else{
+                        printf("(0x%02X)", n);
+                    }
+                    ++j;
+                }
+                printf("\n");
+            }
+        }
+        
     }else if(event_id == TSD_EVENT_ADAP_FIELD_PRV_DATA) {
         // we're only watching for SCTE Adaptions Field Private Data,
         // so we know that we must parse it as a list of descritors.
@@ -159,11 +186,24 @@ void print_pmt(TSDemuxContext *ctx, void *data) {
         printf("  elementary pid: 0x%04X\n", prog->elementary_pid);
         printf("  es info length: %d\n", prog->es_info_length);
         printf("  descriptors length: %d\n", prog->descriptors_length);
-        size_t j;
+
+        // keep track of metadata pids, we'll print the data for these
+        if(prog->stream_type == TSD_PMT_STREAM_TYPE_PES_METADATA)
+        {
+            int k;
+            for(k=0; k<PRINT_PIDS_LEN; ++k) {
+                // find a spare slot in the pids
+                if(print_pids[k] == 0) {
+                    print_pids[k] = prog->elementary_pid;
+                    break;
+                }
+            }
+        }
 
         // we'll register to listen to the PES data for this program.
         int reg_types = TSD_REG_PES;
 
+        size_t j;
         for(j=0;j<prog->descriptors_length;++j) {
             TSDDescriptor *des = &prog->descriptors[j];
             printf("    %d) tag: (0x%04X) %s\n", j, des->tag, descriptor_tag_to_str(des->tag));

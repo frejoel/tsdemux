@@ -5,3 +5,12 @@ bin/*
 *.o
 coverage/*
 **/*.ts
+*.lib
+*.pdb
+*.exe
+*.ilk
+*.log
+*.obj
+*.tlog
+**/Debug/*
+**/Release/*

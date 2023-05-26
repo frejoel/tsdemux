@@ -29,7 +29,7 @@
 #include <stdint.h>
 
 // Software version, format MAJOR.MINOR.PATCH
-#define TSD_VERSION                             "0.1.0"
+#define TSD_VERSION                             "0.1.1"
 
 #define TSD_SYNC_BYTE                           (0x47)
 #define TSD_MESSAGE_LEN                         (128)

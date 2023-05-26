@@ -56,6 +56,7 @@ remove:
 	rm -r -f $(INSTALL_DIR)/include/libtsdemux
 	rm -f $(INSTALL_DIR)/lib/libtsdemux.a
 
+test: static $(OBJ_TESTS)
 tests: static $(OBJ_TESTS)
 
 examples: static $(OBJ_EXAMPLES)
@@ -74,6 +75,7 @@ endif
 
 clean:
 	rm -f -r $(ODIR) $(CCDIR)
+	rm -f -r test/*.o.dSYM
 	find . -type f -name '*.o' -exec rm {} \;
 	find . -type f -name '*.o.dSYM' -exec rm {} \;
 	find . -type f -name '*.o.gcno' -exec rm {} \;

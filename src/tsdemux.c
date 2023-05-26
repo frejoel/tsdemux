@@ -1378,12 +1378,16 @@ TSDCode demux_pes(TSDemuxContext *ctx, TSDPacket *hdr, int reg_idx)
 
     // get the PES length to see if we have the complete packet.
     size_t data_len = dataCtx->write - dataCtx->buffer;
+    // make sure we have enough data to parse the PES
+    // the PES header starts with 6 bytes:
+    //    packet_start_code_prefix(24), stream_id(8) and PES_packet_length(16)
     if(data_len > 5) {
         // get the PES length
         uint16_t pes_len = parse_u16(&dataCtx->buffer[4]);
         // if the amount of data in the DataContext matches the PES length
         // we have enough data to parse the PES packet.
-        if(pes_len > 0 && data_len >= pes_len) {
+        // PES_packet_length doesn't include the first 6 bytes PES header
+        if(pes_len > 0 && data_len >= pes_len + 6) {
             TSDPESPacket pes;
             res = tsd_parse_pes(ctx, dataCtx->buffer, data_len, &pes);
             if(res != TSD_OK) {
@@ -1509,7 +1513,7 @@ size_t tsd_demux(TSDemuxContext *ctx,
                 }
             }
 
-            // if this isn't a PMT PID, check to see if the user has registerd it
+            // if this isn't a PMT PID, check to see if the user has registered it
             if(parsed == 0) {
                 size_t i;
                 for(i=0; i < ctx->registered_pids_length; ++i) {

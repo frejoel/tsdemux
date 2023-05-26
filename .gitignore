@@ -12,5 +12,6 @@ coverage/*
 *.log
 *.obj
 *.tlog
+**/*.o.dSYM/*
 **/Debug/*
 **/Release/*

@@ -3,6 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef ARDUINO
+#  undef main
+#  define main(A,B) TESTparse_pes_header()
+#endif
+
 void test_parse_pes_input(void);
 void test_parse_pes_data(void);
 
@@ -21,9 +26,9 @@ void test_parse_pes_input(void)
     TSDPESPacket pkt;
     TSDCode res;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
 
-    char buffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, };
+    const uint8_t buffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, };
 
     res = tsd_parse_pes(NULL, NULL, 0, NULL);
     test_assert_equal(TSD_INVALID_CONTEXT, res, "invalid context");
@@ -49,9 +54,9 @@ void test_parse_pes_data(void)
     TSDPESPacket pkt;
     TSDCode res;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
 
-    char buffer[] = {
+    const uint8_t buffer[] = {
         0x00, 0x00, 0x01, // start code prefix
         0xE0,   // stream id
         0x00, 0x3C, // packet length

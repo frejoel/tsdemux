@@ -2,6 +2,11 @@
 #include <tsdemux.h>
 #include <string.h>
 
+#ifdef ARDUINO
+#  undef main
+#  define main(A,B) TESTparse_pmt()
+#endif
+
 void parse_pmt_input(void);
 void parse_pmt_data(void);
 void parse_pmt_empty_data(void);
@@ -47,7 +52,7 @@ void parse_pmt_data(void)
     TSDPMTData pmt;
     TSDCode res;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
     memset(&pmt, 0, sizeof(pmt));
 
     uint8_t data[] = {
@@ -117,7 +122,7 @@ void parse_pmt_empty_data(void)
     TSDPMTData pmt;
     TSDCode res;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
     memset(&pmt, 0, sizeof(pmt));
 
     uint8_t data[] = {

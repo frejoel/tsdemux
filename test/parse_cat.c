@@ -2,6 +2,11 @@
 #include <tsdemux.h>
 #include <string.h>
 
+#ifdef ARDUINO
+#  undef main
+#  define main(A,B) TESTparse_cat()
+#endif
+
 void test_parse_cat_input(void);
 void test_parse_cat_data(void);
 
@@ -20,7 +25,7 @@ void test_parse_cat_input(void)
     TSDCATData cat;
     TSDCode res;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
     memset(&cat, 0, sizeof(cat));
 
     uint8_t data[] = {
@@ -51,7 +56,7 @@ void test_parse_cat_data(void)
     TSDCATData cat;
     TSDCode res;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
     memset(&cat, 0, sizeof(cat));
 
     uint8_t data[] = {

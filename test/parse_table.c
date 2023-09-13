@@ -3,21 +3,26 @@
 #include <stdio.h>
 #include <string.h>
 
-void test_input(void);
+#ifdef ARDUINO
+#  undef main
+#  define main(A,B) TESTparse_table()
+#endif
+
+void test_input3(void);
 void test_parse_longform_table(void);
 void test_parse_shortform_table(void);
 void test_parse_multi_packet_table(void);
 
 int main(int argc, char **argv)
 {
-    test_input();
+    test_input3();
     test_parse_longform_table();
     test_parse_shortform_table();
     test_parse_multi_packet_table();
     return 0;
 }
 
-void test_input(void)
+void test_input3(void)
 {
     test_start("tsd_parse_table inputs");
 
@@ -35,7 +40,7 @@ void test_input(void)
     pkt.data_bytes = NULL;
     pkt.data_bytes_length = 0;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
 
     res = tsd_parse_table(NULL, NULL, NULL);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "all null");
@@ -106,7 +111,7 @@ void test_parse_longform_table(void)
     pkt.data_bytes = tableData;
     pkt.data_bytes_length = sizeof(tableData);
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
 
     res = tsd_parse_table(&ctx, &pkt, &table);
     test_assert_equal(res, TSD_OK, "valid table");
@@ -179,7 +184,7 @@ void test_parse_shortform_table(void)
     pkt.data_bytes = tableData;
     pkt.data_bytes_length = sizeof(tableData);
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
 
     res = tsd_parse_table(&ctx, &pkt, &table);
     test_assert_equal(res, TSD_OK, "valid table");
@@ -325,7 +330,7 @@ void test_parse_multi_packet_table(void)
     pkt2.data_bytes = tableData2;
     pkt2.data_bytes_length = sizeof(tableData2);
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
 
     res = tsd_parse_table(&ctx, &pkt, &table);
     test_assert_equal(res, TSD_INCOMPLETE_TABLE, "incomplete table");

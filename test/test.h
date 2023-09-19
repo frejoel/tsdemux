@@ -8,12 +8,19 @@
 #include <tsdemux.h>
 #include <malloc.h>
 
+// define to 1 to use the custom allocation checks
+#ifndef USE_CUSTOM_ALLOCATION
+#  define USE_CUSTOM_ALLOCATION 0
+#endif
+
+// set to 1 to display the allocated memory
 #ifndef LOG_ALLOCATION
 #  define LOG_ALLOCATION 0
 #endif
 
+// define the initial memory for malloc 
 #ifndef ALLOC_MEM_INIT 
-#  define ALLOC_MEM_INIT 0xF1
+#  define ALLOC_MEM_INIT 0x11
 #endif
 
 // store allocated size in first bytes
@@ -30,14 +37,11 @@ static void* test_malloc (size_t size) {
 }
 
 static void* test_calloc(size_t num, size_t size){
-    size_t alloc_size = size+sizeof(size_t);
-    size_t *result = calloc(num, alloc_size);
-    // store size in header
-    *result = size;
+    void *result = test_malloc(num * size);
 #if LOG_ALLOCATION
     printf("calloc(%d) -> %p %s\n", (int)(num*size),result, result!=NULL?"OK":"ERROR");
 #endif
-    return &result[1];
+    return result;
 }
 
 static void* test_realloc(void *ptr, size_t size){
@@ -67,11 +71,12 @@ static void test_free (void *mem){
 
 static TSDCode test_context_init(TSDemuxContext *ctx) {
     TSDCode result = tsd_context_init(ctx);
+#if USE_CUSTOM_ALLOCATION
     ctx->malloc = test_malloc;
     ctx->calloc = test_calloc;
     ctx->realloc = test_realloc;
     ctx->free = test_free;
-
+#endif
     return result;
 }
 

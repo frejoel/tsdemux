@@ -1427,22 +1427,20 @@ TSDCode demux_adaptation_field_prv_data(TSDemuxContext *ctx, TSDPacket *hdr, int
     return TSD_OK;
 }
 
-size_t tsd_demux(TSDemuxContext *ctx,
+TSDCode tsd_demux(TSDemuxContext *ctx,
                  void *data,
                  size_t size,
-                 TSDCode *code)
+                 size_t *parsedSize)
 {
+    // initially set parsedSize to 0
+    if(parsedSize != NULL) *parsedSize = 0;
+
     if(ctx == NULL)         return TSD_INVALID_CONTEXT;
     if(data == NULL)        return TSD_INVALID_DATA;
     if(size == 0)           return TSD_INVALID_DATA_SIZE;
 
     uint8_t *ptr = (uint8_t*)data;
     size_t remaining = size;
-
-    // initially set the code to OK
-    if(code != NULL) {
-        *code = TSD_OK;
-    }
 
     TSDPacket hdr;
     TSDCode res;
@@ -1546,7 +1544,8 @@ size_t tsd_demux(TSDemuxContext *ctx,
         ctx->buffers.length = 0;
     }
 
-    return size - remaining;
+    if (parsedSize != NULL) *parsedSize = size - remaining;
+    return TSD_OK;
 }
 
 TSDCode tsd_demux_end(TSDemuxContext *ctx)

@@ -34,7 +34,7 @@ There are currently no external dependencies required to build this library.
 
 It should be noted that development and testing by the author takes place on
 Linux (Debian), and to date, no compilation and testing has been on attempted
-on Little Endian Architectures.
+on Big Endian Architectures.
 
 ## Makefile Targets
 The Makefile contains the following targets:

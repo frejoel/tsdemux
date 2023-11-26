@@ -1021,11 +1021,10 @@ TSDCode tsd_set_event_callback(TSDemuxContext *ctx, tsd_on_event callback);
  * @param ctx The contenxt being used to demux,
  * @param data The data to demux.
  * @param size The size of data.
- * @param code Used to store the return code of this process.
- * @return The total number of bytes parsed. The process result is stored in
- * code which on success will be TSD_OK;
+ * @param parsedSize The total number of bytes parsed will be populated in parsedSize. This will be 0 if an error is returned.
+ * @return Returns TSD_OK on success.
  */
-size_t tsd_demux(TSDemuxContext *ctx, void *data, size_t size, TSDCode *code);
+TSDCode tsd_demux(TSDemuxContext *ctx, void *data, size_t size, size_t *parsedSize);
 
 /**
  * Ends the Demuxxing process.

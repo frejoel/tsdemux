@@ -70,8 +70,7 @@ int main(int argc, char **charv) {
 
         if(count > 0) {
             // with res, we could report any errors found during demuxing
-            TSDCode res;
-            parsed = tsd_demux(&ctx, buffer, count, &res);
+            TSDCode res = tsd_demux(&ctx, buffer, count, &parsed);
         }else{
             parsed = 0;
         }

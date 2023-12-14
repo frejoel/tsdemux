@@ -2,6 +2,11 @@
 #include <tsdemux.h>
 #include <stdio.h>
 
+#ifdef ARDUINO
+#  undef main
+#  define main(A,B) TESTparse_descriptors()
+#endif
+
 void test_video_stream(void);
 void test_audio_stream(void);
 void test_hierarchy(void);

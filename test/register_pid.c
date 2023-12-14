@@ -3,6 +3,11 @@
 #include <string.h>
 #include <stdio.h>
 
+#ifdef ARDUINO
+#  undef main
+#  define main(A,B) TESTregister_pid()
+#endif
+
 void test_register(void);
 void test_deregister(void);
 
@@ -18,7 +23,7 @@ void test_register(void)
     test_start("register pid");
 
     TSDemuxContext ctx;
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
 
     TSDCode res;
 
@@ -46,7 +51,7 @@ void test_deregister(void)
     test_start("deregister pid");
 
     TSDemuxContext ctx;
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
 
     TSDCode res;
 

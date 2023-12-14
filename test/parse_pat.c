@@ -2,6 +2,11 @@
 #include <tsdemux.h>
 #include <string.h>
 
+#ifdef ARDUINO
+#  undef main
+#  define main(A,B) TESTparse_pat()
+#endif
+
 void test_parse_pat_input(void);
 void test_parse_pat_data(void);
 
@@ -20,7 +25,7 @@ void test_parse_pat_input(void)
     TSDPATData pat;
     TSDCode res;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
     memset(&pat, 0, sizeof(pat));
 
     uint8_t data[] = {
@@ -52,7 +57,7 @@ void test_parse_pat_data(void)
     TSDPATData pat;
     TSDCode res;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
     memset(&pat, 0, sizeof(pat));
 
     uint8_t data[] = {

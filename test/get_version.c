@@ -4,11 +4,14 @@
 
 void test_get_version(void);
 
+#ifndef ARDUINO
 int main(int argc, char** argv)
 {
     test_get_version();
     return 0;
 }
+#endif
+
 void test_get_version(void)
 {
     test_start("get_version");

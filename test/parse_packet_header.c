@@ -2,7 +2,12 @@
 #include <tsdemux.h>
 #include <stdio.h>
 
-void test_input(void);
+#ifdef ARDUINO
+#  undef main
+#  define main(A,B) TESTparse_packet_headers()
+#endif
+
+void test_input2(void);
 void test_parsing_sync_byte(void);
 void test_parsing(void);
 void test_parsing_adaptation_field(void);
@@ -10,7 +15,7 @@ void test_parsing_opcr(void);
 
 int main(int argc, char **argv)
 {
-    test_input();
+    test_input2();
     test_parsing_sync_byte();
     test_parsing();
     test_parsing_adaptation_field();
@@ -18,7 +23,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void test_input(void)
+void test_input2(void)
 {
     test_start("parse_packet_header input");
 
@@ -165,7 +170,7 @@ void test_parsing_adaptation_field(void) {
 
     TSDemuxContext ctx;
     TSDPacket pkt;
-    char *ptr = buffer;
+    const uint8_t *ptr = (const uint8_t *)buffer;
     TSDCode res = tsd_parse_packet_header(&ctx, ptr, len, &pkt);
 
     test_assert_equal(TSD_OK, res, "parsing should return TSD_OK");
@@ -241,7 +246,7 @@ void test_parsing_opcr(void)
 
     TSDemuxContext ctx;
     TSDPacket pkt;
-    char *ptr = buffer;
+    const uint8_t *ptr = (const uint8_t *)buffer;
 
     TSDCode res = tsd_parse_packet_header(&ctx, ptr, len, &pkt);
     test_assert_equal(TSD_OK, res, "should return TSDOK");

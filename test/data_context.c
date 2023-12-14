@@ -1,12 +1,17 @@
 #include "test.h"
 #include <tsdemux.h>
 
+#ifdef ARDUINO
+#  undef main
+#  define main(A,B) TESTdata_context()
+#endif
+
 void test_init(void);
 void test_destroy(void);
 void test_write(void);
 void test_reset(void);
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     test_init();
     test_destroy();
@@ -23,7 +28,7 @@ void test_init(void)
     TSDemuxContext ctx;
     TSDDataContext dataCtx;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
 
     res = tsd_data_context_init(NULL, &dataCtx);
     test_assert_equal(res, TSD_INVALID_CONTEXT, "null context");
@@ -52,7 +57,7 @@ void test_destroy(void)
     TSDemuxContext ctx;
     TSDDataContext dataCtx;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
     res = tsd_data_context_init(&ctx, &dataCtx);
     test_assert_equal(TSD_OK, res, "init");
 
@@ -82,7 +87,7 @@ void test_write(void)
     TSDemuxContext ctx;
     TSDDataContext dataCtx;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
     res = tsd_data_context_init(&ctx, &dataCtx);
     test_assert_equal(TSD_OK, res, "init");
 
@@ -132,7 +137,7 @@ void test_reset(void)
     TSDemuxContext ctx;
     TSDDataContext dataCtx;
 
-    tsd_context_init(&ctx);
+    test_context_init(&ctx);
     res = tsd_data_context_init(&ctx, &dataCtx);
     test_assert_equal(TSD_OK, res, "init");
 

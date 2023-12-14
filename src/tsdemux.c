@@ -650,7 +650,7 @@ TSDCode destroy_pmt_data(TSDemuxContext *ctx, TSDPMTData *pmt)
         for(; i<size; ++i) {
             TSDProgramElement *prog = &pmt->program_elements[i];
             if(prog != NULL && prog->descriptors_length > 0) {
-                free(prog->descriptors);
+                ctx->free(prog->descriptors);
             }
         }
         ctx->free(pmt->program_elements);
@@ -996,7 +996,9 @@ TSDCode tsd_data_context_init(TSDemuxContext *ctx, TSDDataContext *dataCtx)
     if(ctx == NULL)         return TSD_INVALID_CONTEXT;
     if(dataCtx == NULL)     return TSD_INVALID_ARGUMENT;
 
-    dataCtx->buffer = (uint8_t*)ctx->malloc(TSD_MEM_PAGE_SIZE);
+    dataCtx->buffer = (uint8_t*)ctx->calloc(1, TSD_MEM_PAGE_SIZE);
+    if (!dataCtx->buffer) return TSD_OUT_OF_MEMORY;
+
     dataCtx->end = dataCtx->buffer + TSD_MEM_PAGE_SIZE;
     dataCtx->write = dataCtx->buffer;
     dataCtx->size = TSD_MEM_PAGE_SIZE;
